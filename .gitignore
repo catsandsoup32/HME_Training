@@ -1,3 +1,9 @@
+# data directory
+/data/
+/mathwriting_2024_excerpt/
+/excerpt_cache/
+/mathwriting_2024/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
