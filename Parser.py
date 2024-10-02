@@ -67,17 +67,24 @@ def cache_data(data_dir, save_folder):
         with open(txt_file, "w") as f: # w keyword overwrites
             f.write(latex)
 
-        # Save online strokes as *absolute coords and pen lift flags
+        # Save online strokes as *offset coords and pen lift flags
         minX, maxX = min(x), max(x)
         minY, maxY = min(y), max(y)
         minT, maxT = min(t), max(t)
         xRange, yRange, tRange = maxX - minX, maxY - minY, maxT - minT
 
         # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Change this later? Make sure inference matches
+        PL_idx_List = []
         for idx, _ in enumerate(x): # Normalizes coordinates  
             x[idx] = ( x[idx] - minX ) / (xRange) if not np.isnan(x[idx]) else '[PL]'
             y[idx] = ( y[idx] - minY ) / (yRange) if not np.isnan(y[idx]) else '[PL]'
             t[idx] = ( t[idx] - minT ) / (tRange) if not np.isnan(t[idx]) else '[PL]'
+            if np.isnan(x[idx]):
+                PL_idx_List.append(idx)
+
+        for idx, _ in enumerate(x): # Separates into strokes
+            pass 
+
 
         data = {'x': x, 'y': y, 't': t}
         df = pd.DataFrame(data)

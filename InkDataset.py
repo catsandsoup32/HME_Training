@@ -6,6 +6,16 @@ from torch import Tensor
 from PIL import Image
 import os
 from Tokenizer import LaTeXTokenizer
+from pathlib import Path
+
+data_path = Path(r'HME_Training\data\mathwriting_2024_excerpt')
+cache_path = Path(r'HME_Training\data\excerpt_cache')
+
+tokenizer = LaTeXTokenizer()
+latexList = []
+for latex_file in cache_path.glob("train/*.txt"):
+    with open(latex_file) as f:
+            latexList.append(str(f.read()))
 
 class MathWritingDataset(Dataset): 
     def __init__(self, data_dir, cache_dir, mode=None, transform=None): # Note that data_dir is from the original data, not cache
@@ -13,8 +23,7 @@ class MathWritingDataset(Dataset):
         self.cache_dir = cache_dir
         self.mode = mode
         self.transform = transform
-
-        self.tokenizer = LaTeXTokenizer()
+        tokenizer.build_vocab(latexList) # Takes list as input to assign IDs
 
     def __len__(self):
         if self.mode == 'train':
@@ -29,13 +38,16 @@ class MathWritingDataset(Dataset):
     def __getitem__(self, idx):
         if self.mode != 'train+synthetic':
             fileID = str( os.listdir(os.path.join(self.data_dir, self.mode))[idx] ).removesuffix('.inkml')[-16:] 
-            image = Image.open(os.listdir(os.path.join(self.cache_dir, self.mode, fileID + '.png'))[idx])
+            image = Image.open(os.path.join(self.cache_dir, self.mode, fileID + '.png'))
             
             sequence = None
 
-            latex = open(os.listdir(os.path.join(self.cache_dir, self.mode, fileID + '.txt'))[idx]).read()
-            label = self.tokenizer.encode(latex)
+            latex = open(os.path.join(self.cache_dir, self.mode, fileID + '.txt')).read()
+            label = tokenizer.encode(latex)
+            #print(f"Dataset vocab: {tokenizer.vocab}")
+            #print(f"Dataset label: {label}")
         else: 
             pass
 
-        return self.transform(image), sequence, Tensor(label)
+        #return self.transform(image), sequence, label
+        return self.transform(image), Tensor(label)

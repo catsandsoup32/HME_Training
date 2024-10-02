@@ -4,6 +4,7 @@ import re
 from typing import Dict, List, Tuple, Union
 
 
+# Converts to indices, actual embedding happens within the transformer
 class LaTeXTokenizer:
     def __init__(self):
         self.special_tokens = ["[PAD]", "[BOS]", "[EOS]", "[UNK]"]
@@ -18,7 +19,8 @@ class LaTeXTokenizer:
     def build_vocab(self, texts: List[str]):
         # Add special tokens to vocabulary
         for token in self.special_tokens:
-            self.vocab[token] = len(self.vocab)
+            if token not in self.vocab: # FIXES ERROR, BY MAGIC
+                self.vocab[token] = len(self.vocab)
 
         # Create a counter to hold token frequencies
         counter = collections.Counter()
@@ -35,7 +37,7 @@ class LaTeXTokenizer:
 
         # Build dictionaries for token to ID and ID to token conversion
         self.token_to_id = self.vocab
-        self.id_to_token = {v: k for k, v in self.vocab.items()}
+        self.id_to_token = {value: key for key, value in self.token_to_id.items()}
 
     def encode(self, text: str) -> List[int]:
         # Tokenize the input text and add start and end tokens
@@ -47,6 +49,7 @@ class LaTeXTokenizer:
 
     def decode(self, token_ids: List[int]) -> List[str]:
         # Map token IDs back to tokens
+        tokens = [self.id_to_token.get(id, "[UNK]") for id in token_ids]
  
         # Remove tokens beyond the [EOS] token
         if "[EOS]" in tokens:
@@ -57,4 +60,20 @@ class LaTeXTokenizer:
 
         # Reconstruct the original text, ignoring special tokens
         return "".join([token for token in tokens if token not in self.special_tokens])
-    
+
+
+'''
+from pathlib import Path
+import torch
+cache_path = Path(r'HME_Training\data\excerpt_cache')
+tokenizer = LaTeXTokenizer()
+latexList = []
+for latex_file in cache_path.glob("train/*.txt"):
+    with open(latex_file) as f:
+            latexList.append(str(f.read()))
+
+class Testing():
+    tokenizer.build_vocab(latexList)
+    print(len(tokenizer.vocab))
+'''
+
