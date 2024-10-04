@@ -59,8 +59,8 @@ test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode
 
 def main(num_epochs, model_in, LR, dropout):
     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=0, collate_fn=collate_fn) 
-    val_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0, collate_fn=collate_fn)
+    val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
+    test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
     accuracy = Accuracy(task='multiclass', num_classes=len(tokenizer.vocab))
     accuracy = accuracy.to(device)
@@ -93,25 +93,22 @@ def main(num_epochs, model_in, LR, dropout):
             tgt = tgt.to(device)
             tgt_mask = tgt_mask.to(device)
 
-            outputs = model(images, tgt, tgt_mask) # forward
-            # outputs of (batch_size, seq_len, vocab_size)
-            softmax_outputs = F.softmax(outputs, dim=-1)
-            max_prob = torch.argmax(softmax_outputs, dim=-1)
+
+            outputs = model(images, tgt, tgt_mask) # forward, outputs of (batch_size, seq_len, vocab_size)
+            outputs = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
+            tgt = tgt.view(-1) # [B * seq_len], (-1 simply infers dim based on other params)
 
 
-            plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))     
-            plt.show()   
-            for t in tgt:
-                 print(tokenizer.decode(t.tolist()))    
+            #plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))     
+            #plt.show()   
+            #for t in tgt:
+                 #print(tokenizer.decode(t.tolist()))    
 
             greedys = model.greedy_search(images, tokenizer)
 
-            print(f"tgt: {tgt}")
-            print(f"max_prob: {max_prob}")
-
-            loss = criterion(max_prob, tgt)
+            loss = criterion(outputs, tgt)
             running_loss += loss.item() * images.size(0)
-            running_acc += accuracy(max_prob, tgt)
+            running_acc += accuracy(outputs, tgt)
 
             loss.backward()
             optimizer.step()
@@ -130,17 +127,18 @@ def main(num_epochs, model_in, LR, dropout):
                 images = images.to(device)
                 tgt = tgt.to(device)
                 tgt_mask = tgt_mask.to(device)
-                outputs = model(images, tgt, tgt_mask)
-                loss = criterion(max_prob, tgt)
+                outputs = model(images, tgt, tgt_mask).view(-1, outputs.size(-1))
+                tgt = tgt.view(-1)
+                loss = criterion(outputs, tgt)
                 running_loss += loss.item() * images.size(0)
-                running_acc += accuracy(max_prob, tgt)
+                running_acc += accuracy(outputs, tgt)
 
             val_loss = running_loss / len(val_loader.dataset) 
             val_losses.append(val_loss)
             val_acc = running_acc / len(val_loader.dataset) * 100
             val_accs.append(val_acc)
         
-        print(f"Epoch {epoch+1}/{num_epochs} - Train loss: {train_loss} train acc: {train_acc}, val loss: {"val_loss"}, val acc: {'val_acc'}")
+        print(f"Epoch {epoch+1}/{num_epochs} - Train loss: {train_loss} train acc: {train_acc}, val loss: {val_loss}, val acc: {val_acc}")
 
 
 if __name__ == '__main__': 
