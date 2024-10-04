@@ -46,7 +46,7 @@ class PosEncode1D(nn.Module):
         self.register_buffer("pe", pe) # stores pe tensor to be used but not updated
 
     def forward(self, x):
-        batch, sequence_length, d_model = x.shape 
+        batch, sequence_length, d_model = x.shape         
         return self.dropout(x + self.pe[None, :sequence_length, :]) # None to broadcast across batch, adds element-wise [x + pe, . . .]
 
 

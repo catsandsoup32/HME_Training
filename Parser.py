@@ -33,9 +33,14 @@ def cache_data(data_dir, save_folder):
     data_dir = Path(data_dir)
     for file in data_dir.glob("*/*.inkml"):
         strokes, latex, splitTag = parse_inkml(file)
-        img_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
-        txt_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.txt')
-        csv_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.csv')
+        if splitTag != 'synthetic':
+            img_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
+            txt_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.txt')
+            csv_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.csv')
+        else:
+            img_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
+            txt_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.txt')
+            csv_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.csv')
 
         # Render and save image
         ax.set_axis_off()
@@ -67,6 +72,7 @@ def cache_data(data_dir, save_folder):
         with open(txt_file, "w") as f: # w keyword overwrites
             f.write(latex)
 
+        '''
         # Save online strokes as *offset coords and pen lift flags
         minX, maxX = min(x), max(x)
         minY, maxY = min(y), max(y)
@@ -85,10 +91,10 @@ def cache_data(data_dir, save_folder):
         for idx, _ in enumerate(x): # Separates into strokes
             pass 
 
-
         data = {'x': x, 'y': y, 't': t}
         df = pd.DataFrame(data)
         df.to_csv(csv_file, index=False)
+        '''
 
 
 if __name__ == '__main__':        

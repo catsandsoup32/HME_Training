@@ -8,8 +8,8 @@ import os
 from Tokenizer import LaTeXTokenizer
 from pathlib import Path
 
-data_path = Path(r'HME_Training\data\mathwriting_2024_excerpt')
-cache_path = Path(r'HME_Training\data\excerpt_cache')
+data_path = Path(r'data\mathwriting_2024_excerpt')
+cache_path = Path(r'data\excerpt_cache')
 
 tokenizer = LaTeXTokenizer()
 latexList = []
@@ -36,18 +36,18 @@ class MathWritingDataset(Dataset):
             return len(os.listdir(os.path.join(self.data_dir, 'train'))) + len(os.listdir(os.path.join(self.data_dir, 'synthetic')))
     
     def __getitem__(self, idx):
-        if self.mode != 'train+synthetic':
-            fileID = str( os.listdir(os.path.join(self.data_dir, self.mode))[idx] ).removesuffix('.inkml')[-16:] 
-            image = Image.open(os.path.join(self.cache_dir, self.mode, fileID + '.png'))
-            
-            sequence = None
+        fileID = str( os.listdir(os.path.join(self.data_dir, self.mode))[idx] ).removesuffix('.inkml')[-16:] 
+        image = Image.open(os.path.join(self.cache_dir, self.mode, fileID + '.png'))
+        
+        sequence = None
 
-            latex = open(os.path.join(self.cache_dir, self.mode, fileID + '.txt')).read()
-            label = tokenizer.encode(latex)
-            #print(f"Dataset vocab: {tokenizer.vocab}")
-            #print(f"Dataset label: {label}")
-        else: 
-            pass
+        latex = open(os.path.join(self.cache_dir, self.mode, fileID + '.txt')).read()
+        label = tokenizer.encode(latex)
+        #print(f"Dataset vocab: {tokenizer.vocab}")
+        #print(f"Dataset label: {label}")
+    
 
         #return self.transform(image), sequence, label
         return self.transform(image), Tensor(label)
+
+train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train', transform=None)
