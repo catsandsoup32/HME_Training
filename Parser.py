@@ -24,7 +24,7 @@ def parse_inkml(filename: str, ns = {'inkml': 'http://www.w3.org/2003/InkML'}):
 
     latex = root.find('.//inkml:annotation[@type="normalizedLabel"]', ns).text.strip(" $") 
     splitTag = root.find('.//inkml:annotation[@type="splitTagOriginal"]', ns).text
-
+    print("yes")
     return strokes, latex, splitTag
 
 
@@ -34,12 +34,12 @@ def cache_data(data_dir, save_folder):
     for file in data_dir.glob("*/*.inkml"):
         strokes, latex, splitTag = parse_inkml(file)
         if splitTag != 'synthetic':
-            img_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
-            txt_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.txt')
+            img_file = os.path.join('data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
+            txt_file = os.path.join('data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.txt')
             csv_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.csv')
         else:
-            img_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
-            txt_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.txt')
+            img_file = os.path.join('data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
+            txt_file = os.path.join('data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.txt')
             csv_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.csv')
 
         # Render and save image
@@ -98,7 +98,7 @@ def cache_data(data_dir, save_folder):
 
 
 if __name__ == '__main__':        
-    cache_data('HME_Training/data/mathwriting_2024_excerpt', 'excerpt_cache')
+    cache_data('data/mathwriting_2024', 'full_cache')
 
 # Run this once normalization is settled (abs coords can be used) 
 # full_cache hasn't been populated

@@ -28,12 +28,12 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 # Setup vocab, collate_fn, transform -> datasets
 
-data_path = Path(r'data\mathwriting_2024_excerpt')
-cache_path = Path(r'data\excerpt_cache')
+data_path = Path(r'data\mathwriting_2024')
+cache_path = Path(r'data\full_cache')
 
 tokenizer = LaTeXTokenizer()
 latexList = []
-for latex_file in cache_path.glob("train/*.txt"):
+for latex_file in cache_path.glob("valid/*.txt"):
     with open(latex_file) as f:
             latexList.append(str(f.read()))
 tokenizer.build_vocab(latexList) # Takes list as input to assign IDs
@@ -57,9 +57,9 @@ train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mod
 valid_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='valid', transform=transform)
 test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='test', transform=transform)
 
-def main(num_epochs, model_in, LR, dropout):
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=0, collate_fn=collate_fn) 
-    val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
+def main(num_epochs, model_in, LR, dropout, experimentNum):
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=3 , collate_fn=collate_fn) 
+    val_loader = DataLoader(valid_dataset, batch_size=16, shuffle=False, num_workers=0, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
     accuracy = Accuracy(task='multiclass', num_classes=len(tokenizer.vocab))
@@ -104,7 +104,7 @@ def main(num_epochs, model_in, LR, dropout):
             #for t in tgt:
                  #print(tokenizer.decode(t.tolist()))    
 
-            greedys = model.greedy_search(images, tokenizer)
+            #greedys = model.greedy_search(images, tokenizer)
 
             loss = criterion(outputs, tgt)
             running_loss += loss.item() * images.size(0)
@@ -139,14 +139,17 @@ def main(num_epochs, model_in, LR, dropout):
             val_accs.append(val_acc)
         
         print(f"Epoch {epoch+1}/{num_epochs} - Train loss: {train_loss} train acc: {train_acc}, val loss: {val_loss}, val acc: {val_acc}")
+        torch.save(model.statedict(), f"runs/Model_1{experimentNum}Epoch{epoch+1}.pt")
+
 
 
 if __name__ == '__main__': 
     main(
-        num_epochs = 1,
+        num_epochs = 3,
         model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0, num_layers=3),
         LR = 1e-4,
-        dropout = 0
+        dropout = 0,
+        experimentNum = 1
     )
     
     

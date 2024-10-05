@@ -8,12 +8,12 @@ import os
 from Tokenizer import LaTeXTokenizer
 from pathlib import Path
 
-data_path = Path(r'data\mathwriting_2024_excerpt')
-cache_path = Path(r'data\excerpt_cache')
+data_path = Path(r'data\mathwriting_2024')
+cache_path = Path(r'data\full_cache')
 
 tokenizer = LaTeXTokenizer()
 latexList = []
-for latex_file in cache_path.glob("train/*.txt"):
+for latex_file in cache_path.glob("valid/*.txt"):
     with open(latex_file) as f:
             latexList.append(str(f.read()))
 
