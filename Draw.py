@@ -13,22 +13,21 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 import mss
-from bounding_box_cap import squareBB
 import cv2
 
 import sympy
 from sympy import *
-from toSympy import list_to_sympy
-from parse_and_solve import solver
 
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
+import torchvision.transforms as transforms
 
-from NEW_train import transform, transform_norm
-from NEW_models import CNN_9, CNN_16, CNN_19, CNN_22, CNN_24, CNN_26, CNN_50, CNN_28
-from NEW_dataloader import class_Labels_Length
+from Models import Model_1
 
+transform_define = transforms.Compose([
+    transforms.ToTensor()
+])
 
 class Paint(object):
 
@@ -218,58 +217,7 @@ class Paint(object):
             entire_ss = sct.grab(canvas_window) 
 
         imageBGR = cv2.cvtColor(np.array(entire_ss), cv2.COLOR_BGRA2BGR) # np array and bgr for cv2
-        bbList = squareBB(imageBGR)[0] # list of bounding boxes FROM OPENCV
-        self.largestSquare = squareBB(imageBGR)[1]
-        
-        bb_ss_list = []
-        canvasIdx = f"{self.CC}"[-1]
-        canvasIdx = 1 if canvasIdx == 's' else int(canvasIdx)
-        mssScaler = 70 + (336 + 10) * (canvasIdx-1) # deals with padding and mss coords being global not local
-        labelPosList = []
-        for box in bbList:
-            labelPosList.append((box[0], box[1]-30, box[2])) 
-            if self.dev:
-                self.bounding_box(x=box[0], y=box[1], width=box[2], height=box[2], color='green')
-        self.equalsX, self.equalsY, self.equalsS = bbList[-1][0], bbList[-1][1], bbList[-1][2]  
-        # these are only used if last element is an equal sign
-
-        print(f"largestSquare Side: {self.largestSquare[2]}")
-
-        def markup(lst):
-            for idx, box in enumerate(lst): 
-                x = box[0]
-                y = box[1]
-                side = box[2]
-                centerY = y + side//2
-                
-                with mss.mss() as sct: 
-                    # NOTE_ mssScaler is needed for bug fix
-                    bb_window = {"top": y + mssScaler, "left": x, "width": side, "height": side} # y is top
-                    bb_ss = sct.grab(bb_window)                
-
-                if idx > 0: # doesn't activate on first loop
-                    if centerY < int(0.85 * pastY_normal): # 0.8 has bugs
-                        bb_ss_list.append([bb_ss, '^', side])
-                    elif centerY > int(0.9 * (pastY_normal + pastS_normal)):
-                        bb_ss_list.append([bb_ss, '_', side])
-                    else: 
-                        bb_ss_list.append([bb_ss, side])
-                        if abs(side - self.largestSquare[2]) < 50: # fix for exponents
-                            print(f"Error? If this side value ({side}) belongs to an operation")
-                            pastY_normal = y
-                            pastS_normal = side
-                else:
-                    bb_ss_list.append([bb_ss, side])
-                    if idx == 0: # bug fix
-                        pastY_normal = y
-                        pastS_normal = side
-                    else:
-                        if abs(side - self.largestSquare[2]) < 50: # fixes nums after operations being subscripted
-                            print(f"Error? If this side value ({side}) belongs to an operation")    
-                            pastY_normal = y
-                            pastS_normal = side
-        
-        markup(bbList)
+            
 
         # Show the button grid again
         self.pen_button.grid(row=0, column=0, padx=5, pady=5, sticky='e')
@@ -338,20 +286,9 @@ class Paint(object):
                 arrowprops=dict(facecolor='red', edgecolor='red', arrowstyle='->', lw=1.5))
             plt.show() 
             '''
-            
-            if len(syms) == 1: 
-                sympyList.append(max_class_name)
-            else:
-                sympyList.append((syms[1], max_class_name)) # ENSURE this is consistent with toSympy
         
 
-            if self.dev:
-                annotateText = f"{max_class_name}, {int(max_prob*100)}%"
-                createLabelX, createLabelY, cl_side = labelPosList[idx][0], labelPosList[idx][1], labelPosList[idx][2]
-                self.createLabel(label_text=annotateText, x=createLabelX, y=createLabelY, size=cl_side)
-
-        print(f"sympyList: {sympyList}")
-
+        '''
         # split this into a left and right side of equals sign list
         canvasIdx = f"{self.CC}"[-1]
         canvasIdx = 1 if canvasIdx == 's' else int(canvasIdx)
@@ -385,6 +322,7 @@ class Paint(object):
             latex_str = '$' + list_to_sympy(sympyList) + '$'
             self.convert_latex(input=latex_str) # RENDERS LATEX
             self.copy_to_clipboard(string=latex_str)
+        '''
 
     def convert_latex(self, input): # *render latex
         print(f"latex string: {input}")
@@ -414,4 +352,4 @@ class Paint(object):
         self.labelList.append(label)
 
 if __name__ == '__main__':
-    paint_app = Paint(model=CNN_50(), model_folder='runs/CNNmodel52Epoch20.pt', transform=transform_norm)
+    paint_app = Paint(model=Model_1(), model_folder='runs/Model_1Experiment1Epoch1Step6000.pt', transform=transform_define)
