@@ -12,6 +12,7 @@ from tqdm import tqdm
 from torch.nn.utils.rnn import pad_sequence
 from torchvision.utils import make_grid
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -69,6 +70,7 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
 
     optimizer = optim.Adam(model.parameters(), lr=LR)
     criterion = nn.CrossEntropyLoss(ignore_index=0)  # Assuming 0 is the padding index
+    scheduler = ReduceLROnPlateau(optimizer, 'min')
 
     train_accs, train_losses, val_accs, val_losses = [], [], [], []
     
@@ -86,12 +88,14 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
         model.train()
         running_loss, running_acc = 0.0, 0.0
         accuracy.reset()
+        counter = 0 
         
         # training
         for images, tgt, tgt_mask in tqdm(train_loader, desc=f"Epoch {epoch+1}: training loop"):
             images = images.to(device)
             tgt = tgt.to(device)
             tgt_mask = tgt_mask.to(device)
+            counter += 1
 
 
             outputs = model(images, tgt, tgt_mask) # forward, outputs of (batch_size, seq_len, vocab_size)
@@ -113,6 +117,10 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+            if counter%1000 == 0:
+                print("   saved!")
+                torch.save(model.state_dict(), f"runs/Model_1Experiment{experimentNum}Epoch{epoch+1}Step{counter}.pt")
+                print(f"Epoch {epoch+1}/{num_epochs}Step{counter}Loss={running_loss/counter}Acc={accuracy(outputs, tgt)}")
             
         train_acc = running_acc / len(train_loader.dataset) * 100
         train_accs.append(train_acc)
@@ -133,13 +141,15 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
                 running_loss += loss.item() * images.size(0)
                 running_acc += accuracy(outputs, tgt)
 
-            val_loss = running_loss / len(val_loader.dataset) 
-            val_losses.append(val_loss)
-            val_acc = running_acc / len(val_loader.dataset) * 100
-            val_accs.append(val_acc)
+        val_loss = running_loss / len(val_loader.dataset) 
+        val_losses.append(val_loss)
+        val_acc = running_acc / len(val_loader.dataset) * 100
+        val_accs.append(val_acc)
+        scheduler.step(val_loss)
+
         
         print(f"Epoch {epoch+1}/{num_epochs} - Train loss: {train_loss} train acc: {train_acc}, val loss: {val_loss}, val acc: {val_acc}")
-        torch.save(model.statedict(), f"runs/Model_1{experimentNum}Epoch{epoch+1}.pt")
+        torch.save(model.state_dict(), f"runs/Model_1{experimentNum}Epoch{epoch+1}End .pt")
 
 
 if __name__ == '__main__': 
@@ -147,8 +157,8 @@ if __name__ == '__main__':
         num_epochs = 3,
         model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0, num_layers=3),
         LR = 1e-4,
-        dropout = 0,
-        experimentNum = 1
+        dropout = 0.1,
+        experimentNum = 2
     )
     
     

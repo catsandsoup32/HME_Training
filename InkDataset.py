@@ -50,4 +50,4 @@ class MathWritingDataset(Dataset):
         #return self.transform(image), sequence, label
         return self.transform(image), Tensor(label)
 
-train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train', transform=None)
+# train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train', transform=None)
