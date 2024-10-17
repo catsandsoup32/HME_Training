@@ -142,7 +142,6 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
         torch.save(model.statedict(), f"runs/Model_1{experimentNum}Epoch{epoch+1}.pt")
 
 
-
 if __name__ == '__main__': 
     main(
         num_epochs = 3,
