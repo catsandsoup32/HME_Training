@@ -98,7 +98,7 @@ def cache_data(data_dir, save_folder):
 
 
 if __name__ == '__main__':        
-    cache_data('data/mathwriting_2024', 'full_cache')
+    cache_data('data/mathwriting_2024_excerpt', 'excerpt_cache')
 
 # Run this once normalization is settled (abs coords can be used) 
 # full_cache hasn't been populated

@@ -41,10 +41,9 @@ tokenizer.build_vocab(latexList) # Takes list as input to assign IDs
 
 def collate_fn(batch):
     images, labels = zip(*batch)
-
     tgt = pad_sequence(labels, batch_first=True).long() # Pads all sequences to the max of the batch
     seq_len = tgt.size(1) # Max sequence length - because tgt is of size (batch x max_length)
-    tgt_mask = torch.triu(torch.ones(seq_len, seq_len) * float("-inf"), diagonal=1) # ATTENTION MASK, see https://pytorch.org/docs/stable/generated/torch.triu.html
+    tgt_mask = torch.triu(torch.ones(seq_len, seq_len, dtype=torch.float32) * float("-inf"), diagonal=1) # ATTENTION MASK, see https://pytorch.org/docs/stable/generated/torch.triu.html
     images = torch.stack(images)  # tensor of shape (batch_size, C, H, W)
 
     return images, tgt, tgt_mask
@@ -58,9 +57,9 @@ train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mod
 valid_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='valid', transform=transform)
 test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='test', transform=transform)
 
-def main(num_epochs, model_in, LR, dropout, experimentNum):
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=3 , collate_fn=collate_fn) 
-    val_loader = DataLoader(valid_dataset, batch_size=16, shuffle=False, num_workers=0, collate_fn=collate_fn)
+def main(num_epochs, model_in, LR, experimentNum):
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
+    val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
     accuracy = Accuracy(task='multiclass', num_classes=len(tokenizer.vocab))
@@ -74,16 +73,6 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
 
     train_accs, train_losses, val_accs, val_losses = [], [], [], []
     
-    '''
-    for images, tgt, tgt_mask in train_loader:
-        plt.imshow(make_grid(images, nrow=4).permute(1, 2, 0))
-        plt.axis("off")
-        plt.show()
-        for t in tgt:
-            print(tokenizer.decode(t.tolist()))
-        break
-    '''
-
     for epoch in range(num_epochs):
         model.train()
         running_loss, running_acc = 0.0, 0.0
@@ -91,41 +80,43 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
         counter = 0 
         
         # training
-        for images, tgt, tgt_mask in tqdm(train_loader, desc=f"Epoch {epoch+1}: training loop"):
+        for images, tgt, tgt_mask in tqdm(train_loader, desc=f" Epoch {epoch+1}: training loop"):
             images = images.to(device)
             tgt = tgt.to(device)
             tgt_mask = tgt_mask.to(device)
             counter += 1
 
+            tgt_in = tgt[:, :-1] 
+            tgt_out = tgt[:, 1:] # So it doesn't learn to just copy but predict next token
 
-            outputs = model(images, tgt, tgt_mask) # forward, outputs of (batch_size, seq_len, vocab_size)
-            outputs = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
-            tgt = tgt.view(-1) # [B * seq_len], (-1 simply infers dim based on other params)
+            outputs = model(images, tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
+            outputs_reshaped = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
 
+            loss = criterion(outputs_reshaped, tgt_out.reshape(-1))
 
-            #plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))     
-            #plt.show()   
-            #for t in tgt:
-                 #print(tokenizer.decode(t.tolist()))    
-
-            #greedys = model.greedy_search(images, tokenizer)
-
-            loss = criterion(outputs, tgt)
             running_loss += loss.item() * images.size(0)
-            running_acc += accuracy(outputs, tgt)
+            running_acc += accuracy(outputs.permute(0, 2, 1), tgt_out)
 
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-            if counter%1000 == 0:
-                print("   saved!")
-                torch.save(model.state_dict(), f"runs/Model_1Experiment{experimentNum}Epoch{epoch+1}Step{counter}.pt")
-                print(f"Epoch {epoch+1}/{num_epochs}Step{counter}Loss={running_loss/counter}Acc={accuracy(outputs, tgt)}")
             
-        train_acc = running_acc / len(train_loader.dataset) * 100
+            if counter%2000 == 0:
+                print("   Saved!")
+                torch.save(model.state_dict(), f"runs/Exp{experimentNum}E{epoch+1}Step{counter}Loss={running_loss/counter}Acc={accuracy(outputs.permute(0,2,1),tgt_out)}.pt")
+                print("   Sanity check!")
+                print(f"   Target: {tgt_out[0,:]}")
+                print(tgt_out.shape)
+                print(f"   Pred: {torch.argmax(outputs[0,:,:], dim=-1)}")
+                print(torch.argmax(outputs, dim=-1).shape)
+
+
+        train_acc = running_acc / len(train_loader.dataset) * 10
         train_accs.append(train_acc)
         train_loss = running_loss / len(train_loader.dataset) 
         train_losses.append(train_loss)
+
+        torch.save(model.state_dict(), f"runs/Exp{experimentNum}E{epoch+1}End_Acc={train_acc}.pt")
 
         # valid phase
         model.eval()
@@ -145,23 +136,14 @@ def main(num_epochs, model_in, LR, dropout, experimentNum):
         val_losses.append(val_loss)
         val_acc = running_acc / len(val_loader.dataset) * 100
         val_accs.append(val_acc)
-        scheduler.step(val_loss)
-
-        
-        print(f"Epoch {epoch+1}/{num_epochs} - Train loss: {train_loss} train acc: {train_acc}, val loss: {val_loss}, val acc: {val_acc}")
-        torch.save(model.state_dict(), f"runs/Model_1{experimentNum}Epoch{epoch+1}End .pt")
-
+        scheduler.step(val_loss)    
 
 if __name__ == '__main__': 
     main(
         num_epochs = 3,
-        model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0, num_layers=3),
+        model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0.3, num_layers=3),
         LR = 1e-4,
-        dropout = 0.1,
-        experimentNum = 2
+        experimentNum = 6
     )
     
-    
-
-
-
+# Experiment 5 should have fixed attention mask (didn't implement teacher forcing right, as loss was comparing sequences with BOS in it)
