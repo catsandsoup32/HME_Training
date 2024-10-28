@@ -19,6 +19,9 @@ import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
+import cv2
+from PIL import Image
+import math
 
 from InkDataset import MathWritingDataset
 from Tokenizer import LaTeXTokenizer
@@ -39,16 +42,30 @@ for latex_file in cache_path.glob("valid/*.txt"):
             latexList.append(str(f.read()))
 tokenizer.build_vocab(latexList) # Takes list as input to assign IDs
 
+class thicknessTransform(nn.Module):
+    def forward(self, img):
+        enable = np.random.randint(0,1)
+        random_num = np.random.randint(1, 5)
+        kernel = np.ones((random_num, random_num), np.uint8) 
+        img_np = np.array(img)
+        if enable:
+            transform_img = cv2.erode(img_np, kernel)
+        else:
+            random_num = np.random.randint(1,3)
+            transform_img = cv2.dilate(img_np, np.ones((random_num, random_num), np.uint8))
+        return Image.fromarray(transform_img)
+
+
 def collate_fn(batch):
     images, labels = zip(*batch)
     tgt = pad_sequence(labels, batch_first=True).long() # Pads all sequences to the max of the batch
     seq_len = tgt.size(1) # Max sequence length - because tgt is of size (batch x max_length)
     tgt_mask = torch.triu(torch.ones(seq_len, seq_len, dtype=torch.float32) * float("-inf"), diagonal=1) # ATTENTION MASK, see https://pytorch.org/docs/stable/generated/torch.triu.html
     images = torch.stack(images)  # tensor of shape (batch_size, C, H, W)
-
     return images, tgt, tgt_mask
 
 transform = transforms.Compose([
+    thicknessTransform(),
     transforms.RandomPerspective(distortion_scale=0.1, p=0.5, fill=255),
     transforms.ToTensor()
 ])
@@ -59,7 +76,7 @@ test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode
 
 def main(num_epochs, model_in, LR, experimentNum):
     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
-    val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
+    val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=8, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
     accuracy = Accuracy(task='multiclass', num_classes=len(tokenizer.vocab))
@@ -67,12 +84,14 @@ def main(num_epochs, model_in, LR, experimentNum):
     model = model_in
     model = model.to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=LR)
+    optimizer = optim.Adam(model.parameters(), lr=LR, eps=1e-6, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss(ignore_index=0)  # Assuming 0 is the padding index
-    scheduler = ReduceLROnPlateau(optimizer, 'min')
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=3)
 
     train_accs, train_losses, val_accs, val_losses = [], [], [], []
     
+    loss_over_epoch = []
+
     for epoch in range(num_epochs):
         model.train()
         running_loss, running_acc = 0.0, 0.0
@@ -88,6 +107,10 @@ def main(num_epochs, model_in, LR, experimentNum):
 
             tgt_in = tgt[:, :-1] 
             tgt_out = tgt[:, 1:] # So it doesn't learn to just copy but predict next token
+           
+            #plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))
+            #plt.show()
+            #plt.axis("off")
 
             outputs = model(images, tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
             outputs_reshaped = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
@@ -101,22 +124,24 @@ def main(num_epochs, model_in, LR, experimentNum):
             optimizer.step()
             optimizer.zero_grad()
             
-            if counter%2000 == 0:
+            if counter%8000 == 0:
+                loss_over_epoch.append(str(running_loss/counter))
                 print("   Saved!")
-                torch.save(model.state_dict(), f"runs/Exp{experimentNum}E{epoch+1}Step{counter}Loss={running_loss/counter}Acc={accuracy(outputs.permute(0,2,1),tgt_out)}.pt")
                 print("   Sanity check!")
                 print(f"   Target: {tgt_out[0,:]}")
                 print(tgt_out.shape)
                 print(f"   Pred: {torch.argmax(outputs[0,:,:], dim=-1)}")
                 print(torch.argmax(outputs, dim=-1).shape)
+                torch.save(model.state_dict(), f"runs/Exp{experimentNum}E{epoch+1}Step{counter}Loss={round(loss.item(), 2)}Acc={round(accuracy(outputs.permute(0,2,1),tgt_out).item()*100, 2)}.pt")
 
-
+    
         train_acc = running_acc / len(train_loader.dataset) * 10
         train_accs.append(train_acc)
         train_loss = running_loss / len(train_loader.dataset) 
         train_losses.append(train_loss)
 
         torch.save(model.state_dict(), f"runs/Exp{experimentNum}E{epoch+1}End_Acc={train_acc}.pt")
+        print(f"Loss over epoch: {loss_over_epoch}")
 
         # valid phase
         model.eval()
@@ -126,24 +151,36 @@ def main(num_epochs, model_in, LR, experimentNum):
                 images = images.to(device)
                 tgt = tgt.to(device)
                 tgt_mask = tgt_mask.to(device)
-                outputs = model(images, tgt, tgt_mask).view(-1, outputs.size(-1))
-                tgt = tgt.view(-1)
-                loss = criterion(outputs, tgt)
+                tgt_in = tgt[:, :-1] 
+                tgt_out = tgt[:, 1:]
+                outputs = model(images, tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
+                outputs_reshaped = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
+                loss = criterion(outputs_reshaped, tgt_out.reshape(-1))
                 running_loss += loss.item() * images.size(0)
-                running_acc += accuracy(outputs, tgt)
+                running_acc += accuracy(outputs.permute(0, 2, 1), tgt_out)
 
         val_loss = running_loss / len(val_loader.dataset) 
         val_losses.append(val_loss)
         val_acc = running_acc / len(val_loader.dataset) * 100
         val_accs.append(val_acc)
-        scheduler.step(val_loss)    
+        scheduler.step()
+        print(f"val loss: {val_loss}, val acc: {val_acc}")
 
 if __name__ == '__main__': 
     main(
         num_epochs = 3,
         model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0.3, num_layers=3),
         LR = 1e-4,
-        experimentNum = 6
+        experimentNum = 8
     )
     
 # Experiment 5 should have fixed attention mask (didn't implement teacher forcing right, as loss was comparing sequences with BOS in it)
+
+# Experiment 6 is with no pretrained weights
+
+# Experiment 7 has pretrained weights and Adadelta optimizer
+# optimizer = optim.Adadelta(model.parameters(), lr=LR, rho=0.9, eps=1e-06, weight_decay=0)
+# why so bad :'(  -- could be because set LR for Adadelta ... 
+ 
+# Experiment 8 uses pretrained and Adam, also implemented thickness transform and plan to train on more epochs
+# optimizer = optim.Adam(model.parameters(), lr=LR, eps=1e-6, weight_decay=1e-4)

@@ -13,7 +13,7 @@ class Model_1(nn.Module): # from https://actamachina.com/handwritten-mathematica
     def __init__(self, vocab_size, d_model, nhead, dim_FF, dropout, num_layers):
         super(Model_1, self).__init__()
         device = 'cuda'
-        densenet = densenet121() # weights=DenseNet121_Weights.DEFAULT gives weights that are too close to zero (prob bc of black and white image)
+        densenet = densenet121(weights=DenseNet121_Weights.DEFAULT) 
         
         self.encoder = nn.Sequential(
             nn.Sequential(*list(densenet.children())[:-1]), # remove the final layer, output (B, 1024, 12, 16)
@@ -79,3 +79,4 @@ class Model_1(nn.Module): # from https://actamachina.com/handwritten-mathematica
             
         return [tokenizer.decode(seq.tolist()) for seq in tgt]
     
+
