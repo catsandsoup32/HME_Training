@@ -5,7 +5,6 @@ from torch.nn.functional import log_softmax
 import torch.nn.init as init
 from torchvision.models import densenet121, DenseNet121_Weights
 import math
-from torchsummary import summary
 from Util import PatchEmbedding, Permute, PosEncode1D, PosEncode2D
 
 
