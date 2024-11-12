@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from torch import Tensor
+from torch import Tensor 
 import math
 
 class PatchEmbedding(nn.Module):
@@ -22,14 +22,13 @@ class PatchEmbedding(nn.Module):
         return x 
     
 class Permute(nn.Module):
-    def __init__(self, *dims: int): # asterik accepts arbitary amount of arguments
+    def __init__(self, *dims: int): # asterisk accepts arbitary amount of arguments
         super().__init__()
         self.dims = dims
 
     def forward(self, x):
         return x.permute(*self.dims) # reorders the tuple
     
-
 class PosEncode1D(nn.Module):
     def __init__(self, d_model, dropout_percent, max_len, PE_temp):
         super().__init__()
@@ -63,7 +62,7 @@ class PosEncode2D(nn.Module):
 
         pe_2D = torch.zeros(max_len, max_len, d_model) # some outer product magic
         for i in range(d_model):
-            pe_2D[:, :, i] = pe[:, i].unsqueeze(-1) + pe[:, i].unsqueeze(0) 
+            pe_2D[:, :, i] = pe[:, i].unsqueeze(1) + pe[:, i].unsqueeze(0)  # first unsqueeze changed from -1
 
         self.dropout = nn.Dropout(dropout_percent)
         self.register_buffer("pe", pe_2D) 

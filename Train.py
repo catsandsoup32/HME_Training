@@ -75,7 +75,7 @@ valid_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mod
 test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='test', transform=transform)
 
 def main(num_epochs, model_in, LR, experimentNum):
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
+    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
     val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=8, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
@@ -104,6 +104,7 @@ def main(num_epochs, model_in, LR, experimentNum):
             tgt = tgt.to(device)
             tgt_mask = tgt_mask.to(device)
             counter += 1
+            torch.set_printoptions(threshold=None)
 
             tgt_in = tgt[:, :-1] 
             tgt_out = tgt[:, 1:] # So it doesn't learn to just copy but predict next token
@@ -111,6 +112,10 @@ def main(num_epochs, model_in, LR, experimentNum):
             #plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))
             #plt.show()
             #plt.axis("off")
+        
+            print(images.shape)
+            print(tgt_in.shape)
+            print(tgt_mask[:-1, :-1].shape)
 
             outputs = model(images, tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
             outputs_reshaped = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]

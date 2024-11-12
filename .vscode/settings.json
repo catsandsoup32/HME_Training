@@ -1,4 +1,12 @@
 {
-    "python.analysis.exclude": ["**/data", "**/node_modules", "**/__pycache__", "**/build", ".git", "myenv/**"]
+    "python.analysis.exclude": [
+        "**/data",
+        "**/node_modules",
+        "**/__pycache__",
+        "**/build",
+        ".git",
+        "myenv/**"
+    ],
+    "sarif-viewer.connectToGithubCodeScanning": "off"
 }
        
