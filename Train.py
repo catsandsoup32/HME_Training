@@ -92,7 +92,9 @@ def main(num_epochs, model_in, LR, experimentNum):
     
     loss_over_epoch = []
 
-    for epoch in range(num_epochs):
+    model.load_state_dict(torch.load("runs/Exp8E15End_Acc=0.6744208335876465.pta", map_location=device, weights_only=True))
+    # change to range(1, num_epochs) if loading from saved
+    for epoch in range(15,num_epochs):
         model.train()
         running_loss, running_acc = 0.0, 0.0
         accuracy.reset()
@@ -129,7 +131,7 @@ def main(num_epochs, model_in, LR, experimentNum):
             optimizer.step()
             optimizer.zero_grad()
             
-            if counter%8000 == 0:
+            if counter%15000 == 0:
                 loss_over_epoch.append(str(running_loss/counter))
                 print("   Saved!")
                 print("   Sanity check!")
@@ -152,7 +154,7 @@ def main(num_epochs, model_in, LR, experimentNum):
         model.eval()
         running_loss, running_acc = 0.0, 0.0
         with torch.no_grad():
-            for images, tgt, tgt_mask in tqdm(train_loader, desc=f"Epoch {epoch+1}: val loop"):
+            for images, tgt, tgt_mask in tqdm(val_loader, desc=f"Epoch {epoch+1}: val loop"):
                 images = images.to(device)
                 tgt = tgt.to(device)
                 tgt_mask = tgt_mask.to(device)
@@ -168,12 +170,12 @@ def main(num_epochs, model_in, LR, experimentNum):
         val_losses.append(val_loss)
         val_acc = running_acc / len(val_loader.dataset) * 100
         val_accs.append(val_acc)
-        scheduler.step()
         print(f"val loss: {val_loss}, val acc: {val_acc}")
+        scheduler.step(val_loss)
 
 if __name__ == '__main__': 
     main(
-        num_epochs = 3,
+        num_epochs = 30,
         model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0.3, num_layers=3),
         LR = 1e-4,
         experimentNum = 8
@@ -188,4 +190,4 @@ if __name__ == '__main__':
 # why so bad :'(  -- could be because set LR for Adadelta ... 
  
 # Experiment 8 uses pretrained and Adam, also implemented thickness transform and plan to train on more epochs
-# optimizer = optim.Adam(model.parameters(), lr=LR, eps=1e-6, weight_decay=1e-4)
+# optimizer = optim.Adam(model.parameters(), lr=1e-4, eps=1e-6, weight_decay=1e-4)
