@@ -1,0 +1,1 @@
+Training samples are obtained from the [MathWriting](https://arxiv.org/html/2404.10690v1) dataset.

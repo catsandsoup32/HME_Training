@@ -1,9 +1,12 @@
-# data directory
-/data/
+# Large files
 /runs/
-/mathwriting_2024_excerpt/
-/excerpt_cache/
-/mathwriting_2024/
+data/mathwriting_2024_excerpt/
+data/full_cache/
+data/excerpt_cache/
+data/mathwriting_2024/
+
+# Other
+*.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
