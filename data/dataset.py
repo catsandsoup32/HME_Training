@@ -5,7 +5,7 @@ from torchvision.datasets import ImageFolder
 from torch import Tensor
 from PIL import Image
 import os
-from Tokenizer import LaTeXTokenizer
+from tokenizer import LaTeXTokenizer
 from pathlib import Path
 
 data_path = Path(r'data\mathwriting_2024')

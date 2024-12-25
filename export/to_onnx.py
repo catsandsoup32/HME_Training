@@ -1,6 +1,6 @@
 import torch
 import torch.onnx
-from Models import Model_1
+from models import Model_1
 
 import os
 os.environ["TORCH_LOGS"] = "+dynamo"

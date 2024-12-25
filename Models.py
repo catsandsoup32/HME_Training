@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.init as init
 from torchvision.models import densenet121, DenseNet121_Weights
 import math
-from Util import Permute, PosEncode1D, PosEncode2D
+from util import Permute, PosEncode1D, PosEncode2D
 
 
 # Includes bidirectional decoder and pen stroke data in input channels

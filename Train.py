@@ -23,10 +23,10 @@ import cv2
 from PIL import Image
 import math
 
-from InkDataset import MathWritingDataset
-from Tokenizer import LaTeXTokenizer
+from data.dataset import MathWritingDataset
+from tokenizer import LaTeXTokenizer
 
-from Models import Model_1
+from models import Model_1
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
