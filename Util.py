@@ -1,33 +1,16 @@
 import torch
 import torch.nn as nn
 from torch import Tensor 
-import math
 
-class PatchEmbedding(nn.Module):
-    # Images are (512, 384), 768 patches in total
-    def __init__(self, in_channels=1, patch_size=16, emb_size=768, img_size=(512, 384)): 
-        super(PatchEmbedding, self).__init__()
-        self.img_size = img_size
-        self.patch_size = patch_size
-        self.proj = nn.Conv2d(in_channels, emb_size, kernel_size=patch_size, stride=patch_size) # Gets patches
-        self.cls_token = nn.Parameter(torch.randn(1, 1, emb_size))
-        self.pos_embed = nn.Parameter(torch.randn(1, (img_size // patch_size) ** 2 + 1, emb_size))
 
-    def forward(self, x):
-        B = x.size(0)
-        x = self.proj(x).flatten(2).transpose(1, 2)  # (B, emb_size, num_patches)
-        cls_tokens = self.cls_token.expand(B, -1, -1)
-        x = torch.cat((cls_tokens, x), dim=1)  # (B, num_patches+1, emb_size)
-        x = x + self.pos_embed
-        return x 
-    
 class Permute(nn.Module):
-    def __init__(self, *dims: int): # asterisk accepts arbitary amount of arguments
+    def __init__(self, *dims: int): 
         super().__init__()
         self.dims = dims
 
     def forward(self, x):
         return x.permute(*self.dims) # reorders the tuple
+    
     
 class PosEncode1D(nn.Module):
     def __init__(self, d_model, dropout_percent, max_len, PE_temp):

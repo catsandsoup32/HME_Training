@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from torch import Tensor
 from torch import log_softmax
 
-from Models import Model_1
-from Tokenizer import LaTeXTokenizer
+from models import Model_1
+from tokenizer import LaTeXTokenizer
 
 tokenizer = LaTeXTokenizer()
 latexList = []

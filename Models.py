@@ -82,7 +82,7 @@ class Model_1(nn.Module):
         padding_mask = tgt.eq(0) # checks where elements of tgt are equal to zero
         tgt = self.tgt_embedding(tgt) * math.sqrt(self.d_model) # tgt indices become embedding vectors and are scaled by sqrt of model size for stability
         tgt = self.word_PE(tgt) # adds positional encoding, size (B, seq_len, d_model)
-        tgt = self.transformer_decoder(tgt=tgt, memory=features, tgt_mask=tgt_mask, tgt_key_padding_mask=padding_mask, tgt_is_causal=True) # type match
+        tgt = self.transformer_decoder(tgt=tgt, memory=features, tgt_mask=tgt_mask.to(torch.float32), tgt_key_padding_mask=padding_mask.to(torch.float32), tgt_is_causal=True) # type match
         output = self.fc_out(tgt) # size (B, seq_len, vocab_size
         return output
     
