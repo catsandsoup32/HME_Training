@@ -19,15 +19,15 @@ def parse_inkml(filename: str, ns = {'inkml': 'http://www.w3.org/2003/InkML'}):
         coords = trace.text.strip().split(',') # List as ['x y t', 'x1, y1, t1', . . .]
         for coord in coords:
             x, y, t = coord.split(' ')
-            strokes.append((float(x), -float(y), float(t)))
+            strokes.append((float(x), -float(y), float(t))) # Note y is flipped
         strokes.append('TE') # trace end
 
     latex = root.find('.//inkml:annotation[@type="normalizedLabel"]', ns).text.strip(" $") 
     splitTag = root.find('.//inkml:annotation[@type="splitTagOriginal"]', ns).text
-    print("yes")
     return strokes, latex, splitTag
 
 
+# For black-on-white images
 def cache_data(data_dir, save_folder):
     fig, ax = plt.subplots()
     data_dir = Path(data_dir)
@@ -36,11 +36,9 @@ def cache_data(data_dir, save_folder):
         if splitTag != 'synthetic':
             img_file = os.path.join('data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
             txt_file = os.path.join('data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.txt')
-            csv_file = os.path.join('HME_Training', 'data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.csv')
         else:
             img_file = os.path.join('data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
             txt_file = os.path.join('data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.txt')
-            csv_file = os.path.join('HME_Training', 'data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.csv')
 
         # Render and save image
         ax.set_axis_off()
@@ -72,33 +70,14 @@ def cache_data(data_dir, save_folder):
         with open(txt_file, "w") as f: # w keyword overwrites
             f.write(latex)
 
-        '''
-        # Save online strokes as *offset coords and pen lift flags
-        minX, maxX = min(x), max(x)
-        minY, maxY = min(y), max(y)
-        minT, maxT = min(t), max(t)
-        xRange, yRange, tRange = maxX - minX, maxY - minY, maxT - minT
 
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Change this later? Make sure inference matches
-        PL_idx_List = []
-        for idx, _ in enumerate(x): # Normalizes coordinates  
-            x[idx] = ( x[idx] - minX ) / (xRange) if not np.isnan(x[idx]) else '[PL]'
-            y[idx] = ( y[idx] - minY ) / (yRange) if not np.isnan(y[idx]) else '[PL]'
-            t[idx] = ( t[idx] - minT ) / (tRange) if not np.isnan(t[idx]) else '[PL]'
-            if np.isnan(x[idx]):
-                PL_idx_List.append(idx)
+strokes, latex, splitTag = parse_inkml(r"C:\Users\edmun\Desktop\VSCode Projects\HME_Training\data\mathwriting_2024_excerpt\train\00bddacfb3de33ce.inkml")
 
-        for idx, _ in enumerate(x): # Separates into strokes
-            pass 
 
-        data = {'x': x, 'y': y, 't': t}
-        df = pd.DataFrame(data)
-        df.to_csv(csv_file, index=False)
-        '''
+
 
 
 if __name__ == '__main__':        
     cache_data('data/mathwriting_2024_excerpt', 'excerpt_cache')
 
 # Run this once normalization is settled (abs coords can be used) 
-# full_cache hasn't been populated

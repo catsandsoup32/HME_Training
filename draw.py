@@ -1,5 +1,5 @@
 from tkinter import *
-from PIL import Image, ImageGrab
+from PIL import ImageGrab
 import torch
 import torchvision.transforms as transforms
 from models import Model_1
@@ -31,6 +31,10 @@ def greedy(input):
     latex_out = tokenizer.decode(t for t in tgt_in[0, :].tolist())
     print(latex_out)
     return latex_out
+
+
+def beam_search(input):
+    pass
 
 
 class Paint(object):

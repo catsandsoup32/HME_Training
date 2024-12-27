@@ -35,12 +35,14 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 data_path = Path(r'data\mathwriting_2024')
 cache_path = Path(r'data\full_cache')
 
+
 tokenizer = LaTeXTokenizer()
 latexList = []
-for latex_file in cache_path.glob("valid/*.txt"):
+for latex_file in cache_path.glob("valid/*.txt"): 
     with open(latex_file) as f:
             latexList.append(str(f.read()))
 tokenizer.build_vocab(latexList) # Takes list as input to assign IDs
+
 
 class thicknessTransform(nn.Module):
     def forward(self, img):
@@ -64,6 +66,7 @@ def collate_fn(batch):
     images = torch.stack(images)  # tensor of shape (batch_size, C, H, W)
     return images, tgt, tgt_mask
 
+
 transform = transforms.Compose([
     thicknessTransform(),
     transforms.RandomPerspective(distortion_scale=0.1, p=0.5, fill=255),
@@ -73,6 +76,7 @@ transform = transforms.Compose([
 train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train', transform=transform)
 valid_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='valid', transform=transform)
 test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='test', transform=transform)
+
 
 def main(num_epochs, model_in, LR, experimentNum):
     train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
@@ -92,7 +96,7 @@ def main(num_epochs, model_in, LR, experimentNum):
     
     loss_over_epoch = []
 
-    model.load_state_dict(torch.load("runs/Exp8E15End_Acc=0.6744208335876465.pta", map_location=device, weights_only=True))
+    model.load_state_dict(torch.load("runs/Exp8E15End_Acc=0.6744208335876465.pt", map_location=device, weights_only=True))
     # change to range(1, num_epochs) if loading from saved
     for epoch in range(15,num_epochs):
         model.train()
@@ -115,9 +119,9 @@ def main(num_epochs, model_in, LR, experimentNum):
             #plt.show()
             #plt.axis("off")
         
-            print(images.shape)
-            print(tgt_in.shape)
-            print(tgt_mask[:-1, :-1].shape)
+            #print(images.shape)
+            #print(tgt_in.shape)
+            #print(tgt_mask[:-1, :-1].shape)
 
             outputs = model(images, tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
             outputs_reshaped = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
@@ -173,12 +177,13 @@ def main(num_epochs, model_in, LR, experimentNum):
         print(f"val loss: {val_loss}, val acc: {val_acc}")
         scheduler.step(val_loss)
 
+
 if __name__ == '__main__': 
     main(
         num_epochs = 30,
         model_in = Model_1(vocab_size=len(tokenizer.vocab), d_model=256, nhead=8, dim_FF=1024, dropout=0.3, num_layers=3),
         LR = 1e-4,
-        experimentNum = 8
+        experimentNum = 9
     )
     
 # Experiment 5 should have fixed attention mask (didn't implement teacher forcing right, as loss was comparing sequences with BOS in it)
