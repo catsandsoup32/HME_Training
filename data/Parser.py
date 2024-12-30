@@ -116,7 +116,7 @@ def cache_extra(data_dir, save_folder):
                 if dist_x > max_dist_x: max_dist_x = dist_x
                 if dist_y > max_dist_y: max_dist_y = dist_y
 
-                color[idx-1, 0] = t / (stroke[-1][2] - stroke[0][2]) 
+                color[idx-1, 0] = t / (stroke[-1][2] - stroke[0][2]) if stroke[-1][2] != stroke[0][2] else min(1, t / 1e-5) # Fixes divide-by-zero
                 color[idx-1, 1] = dist_x / x_scale
                 color[idx-1, 2] = dist_y / y_scale
 
@@ -147,5 +147,5 @@ def cache_extra(data_dir, save_folder):
 
 if __name__ == '__main__':        
     #cache_data('data/mathwriting_2024_excerpt', 'excerpt_cache')
-    cache_extra('data/mathwriting_2024_excerpt', 'excerpt_cache')
+    cache_extra('data/mathwriting_2024', 'full_cache')
     
