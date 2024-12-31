@@ -4,7 +4,7 @@ Training code for handwritten mathematical expression recognition using a bidire
 
 # Setup
 
-Run locally in `draw.py` file after `pip install -r requirements.txt` and ensuring LaTeX is installed. Also, please check out https://github.com/catsandsoup32/TeXan, an ongoing attempt to deploy the model online.
+Run locally in `draw.py` file after `pip install -r requirements.txt` and ensuring LaTeX is installed. There is also an ongoing attempt to deploy the model online: https://github.com/catsandsoup32/TeXan.
 
 # Color Channel Embedding
 
