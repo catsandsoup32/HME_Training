@@ -80,7 +80,7 @@ test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode
 
 
 def main(num_epochs, model_in, LR, experimentNum):
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
     val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=8, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
@@ -115,7 +115,7 @@ def main(num_epochs, model_in, LR, experimentNum):
             torch.set_printoptions(threshold=None)
 
             tgt_in, reversed_tgt_in = tgt[:, :-1], reversed_tgt[:, :-1]
-            tgt_out, reversed_tgt_out = tgt[:, 1:], reversed_tgt[:, 1:] # So it doesn't learn to just copy but predict next token
+            tgt_out, reversed_tgt_out = tgt[:, 1:], reversed_tgt[:, 1:] # So it doesn't learn to just copy but to actually predict the next token
            
             plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))
             plt.show()
