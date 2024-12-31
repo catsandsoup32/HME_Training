@@ -6,7 +6,7 @@ import math
 from util import Permute, PosEncode1D, PosEncode2D
 
 
-# Includes bidirectional decoder and pen stroke data in input channels
+# Includes bidirectional decoder, pen stroke data in input channels, and full vocabulary
 class Full_Model(nn.Module):
     def __init__(self, vocab_size, d_model, nhead, dim_FF, dropout, num_layers):
         super(Model_1, self).__init__()
