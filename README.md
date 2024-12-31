@@ -1,6 +1,6 @@
 # HME_Training
 
-Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. 
+Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. See the model in action being used to write out the derivative of softmax: TBD.
 
 # Color Channel Embedding
 
