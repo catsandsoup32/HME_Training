@@ -2,6 +2,7 @@
 
 Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. 
 
+
 # Color Channel Embedding
 
 Just as in text-to-text translation or image-captioning tasks, an encoder-decoder architecture is used here. The encoder is a pretrained Densenet-121 CNN and the decoder is a standard implementation of the one presented in *Attention is All You Need*. The pretrained Densenet means that all three color channels are inputted, and thus it is a bit of a waste to only process black-on-white images. For that reason, it becomes useful to embed time and distance information into color channels. This is performed with online InkML-format data (online as in opposed to *offline* image data) that represents the coordinates and timestamp of points sampled along pen strokes. For each line segment, its red, green, and blue channels are calculated by `timestamp / time of entire stroke`, `x-displacement * scaling_x / (max x - min x) `, and `y-displacement * scaling_y / (max y - min y)` respectively. The distance values were consistently less than 0.004 = 1/255, so the scaling was added to ensure their impact. Below are some examples of images modified in this way (and also with an applied erode/dilate transform).
@@ -11,9 +12,10 @@ Just as in text-to-text translation or image-captioning tasks, an encoder-decode
 </p>
 
 
-
-
 # Bidirectionality
+
+LaTeX and math itself is inherently somewhat palindromic (`\begin{matrix}` is always followed by `\end{matrix}`, every opening bracket or parenthesis is always followed by a closing bracket or parenthesis, operands are always sandwiched between expressions, etc.), much more so than the English language, which is perhaps why a simpler approach works here compared to the more complex and deeper bidirectionality in some language models such as BERT (and a much smaller vocabulary certainly also helps). The simple approach is as follows: train the model with three inputs in the handwriting image, a left-to-right target sequence (\<BOS\>, . . . , \<EOS\>), and a right-to-left target sequence (\<EOS\>, . . . , \<BOS\>). 
+
 
 
 

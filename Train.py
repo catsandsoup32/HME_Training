@@ -130,7 +130,7 @@ def main(num_epochs, model_in, LR, experimentNum):
 
             loss_L = criterion(outputs_reshaped_L, tgt_out.reshape(-1))
             loss_R = criterion(outputs_reshaped_R, reversed_tgt_out.reshape(-1))
-            loss = loss_L + loss_R
+            loss = 0.5*loss_L + 0.5*loss_R
 
             running_loss += loss.item() * images.size(0)
             running_acc += (0.5 * accuracy(outputs[0].permute(0, 2, 1), tgt_out) + 0.5 * accuracy(outputs[1].permute(0, 2, 1), reversed_tgt_out))
