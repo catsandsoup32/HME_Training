@@ -22,7 +22,7 @@ Just as in text-to-text translation or image-captioning tasks, an encoder-decode
 
 # References
 
-- The model architecture is from [this paper](https://arxiv.org/abs/2105.02412) by Zhao et al. (2021)
+- The model architecture and bidirectionality is from [this paper](https://arxiv.org/abs/2105.02412) by Zhao et al. (2021)
 - The idea to embed time and distance information into color channels came from [this paper](https://arxiv.org/html/2402.15307v1) by Fadeeva et al. (2024)
 - Training samples are obtained from [MathWriting](https://arxiv.org/html/2404.10690v1) coming out of Google Research
 - Timothy Leung's [blog](https://actamachina.com/) post was a great help in getting started with the PyTorch code
