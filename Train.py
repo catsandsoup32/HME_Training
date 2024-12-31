@@ -59,12 +59,13 @@ class thicknessTransform(nn.Module):
 
 
 def collate_fn(batch):
-    images, labels = zip(*batch)
+    images, labels, reversed_labels = zip(*batch)
     tgt = pad_sequence(labels, batch_first=True).long() # Pads all sequences to the max of the batch
+    reversed_tgt = pad_sequence(reversed_labels, batch_first=True).long()
     seq_len = tgt.size(1) # Max sequence length - because tgt is of size (batch x max_length)
     tgt_mask = torch.triu(torch.ones(seq_len, seq_len, dtype=torch.float32) * float("-inf"), diagonal=1) # ATTENTION MASK, see https://pytorch.org/docs/stable/generated/torch.triu.html
     images = torch.stack(images)  # tensor of shape (batch_size, C, H, W)
-    return images, tgt, tgt_mask
+    return images, tgt, reversed_tgt, tgt_mask
 
 
 transform = transforms.Compose([
@@ -79,7 +80,7 @@ test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode
 
 
 def main(num_epochs, model_in, LR, experimentNum):
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
     val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=8, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False, num_workers=0, collate_fn=collate_fn)
 
@@ -96,40 +97,43 @@ def main(num_epochs, model_in, LR, experimentNum):
     
     loss_over_epoch = []
 
-    model.load_state_dict(torch.load("runs/Exp8E15End_Acc=0.6744208335876465.pt", map_location=device, weights_only=True))
+    #model.load_state_dict(torch.load("runs/Exp8E15End_Acc=0.6744208335876465.pt", map_location=device, weights_only=True))
     # change to range(1, num_epochs) if loading from saved
-    for epoch in range(15,num_epochs):
+    for epoch in range(0, num_epochs):
         model.train()
         running_loss, running_acc = 0.0, 0.0
         accuracy.reset()
         counter = 0 
         
         # training
-        for images, tgt, tgt_mask in tqdm(train_loader, desc=f" Epoch {epoch+1}: training loop"):
+        for images, tgt, reversed_tgt, tgt_mask in tqdm(train_loader, desc=f" Epoch {epoch+1}: training loop"):
             images = images.to(device)
             tgt = tgt.to(device)
+            reversed_tgt = reversed_tgt.to(device)
             tgt_mask = tgt_mask.to(device)
             counter += 1
             torch.set_printoptions(threshold=None)
 
-            tgt_in = tgt[:, :-1] 
-            tgt_out = tgt[:, 1:] # So it doesn't learn to just copy but predict next token
+            tgt_in, reversed_tgt_in = tgt[:, :-1], reversed_tgt[:, :-1]
+            tgt_out, reversed_tgt_out = tgt[:, 1:], reversed_tgt[:, 1:] # So it doesn't learn to just copy but predict next token
            
-            #plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))
-            #plt.show()
-            #plt.axis("off")
+            plt.imshow(make_grid(images.cpu(), nrow=4).permute(1, 2, 0))
+            plt.show()
+            plt.axis("off")
         
-            #print(images.shape)
-            #print(tgt_in.shape)
-            #print(tgt_mask[:-1, :-1].shape)
+            print(images.shape)
+            print(tgt_in.shape)
+            print(tgt_mask[:-1, :-1].shape)
 
-            outputs = model(images, tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
-            outputs_reshaped = outputs.view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
+            outputs = model(images, tgt_in, reversed_tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
+            outputs_reshaped_L, outputs_reshaped_R = outputs[0].view(-1, outputs.size(-1)), outputs[1].view(-1, outputs.size(-1)) # [B * seq_len, vocab_size]
 
-            loss = criterion(outputs_reshaped, tgt_out.reshape(-1))
+            loss_L = criterion(outputs_reshaped_L, tgt_out.reshape(-1))
+            loss_R = criterion(outputs_reshaped_R, reversed_tgt_out.reshape(-1))
+            loss = loss_L + loss_R
 
             running_loss += loss.item() * images.size(0)
-            running_acc += accuracy(outputs.permute(0, 2, 1), tgt_out)
+            running_acc += (0.5 * accuracy(outputs[0].permute(0, 2, 1), tgt_out) + 0.5 * accuracy(outputs[1].permute(0, 2, 1), reversed_tgt_out))
 
             loss.backward()
             optimizer.step()

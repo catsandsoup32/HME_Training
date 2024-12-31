@@ -31,13 +31,15 @@ class Full_Model(nn.Module):
         padding_mask = tgt.eq(0) 
         tgt = self.tgt_embedding(tgt) * math.sqrt(self.d_model) 
         tgt = self.word_PE(tgt) 
-        tgt = self.transformer_decoder(tgt=tgt, memory=features, tgt_mask=tgt_mask, tgt_key_padding_mask=padding_mask, tgt_is_causal=True) 
+        tgt = self.transformer_decoder(tgt=tgt, memory=features, tgt_mask=tgt_mask.to(torch.float32), tgt_key_padding_mask=padding_mask.to(torch.float32), tgt_is_causal=True) 
         output = self.fc_out(tgt)
         return output
     
-    def forward(self, src, tgt, tgt_mask):
+    def forward(self, src, tgt, reversed_tgt, tgt_mask):
         features = self.encoder(src)
-        output = self.decoder(features, tgt, tgt_mask)
+        L2R_output = self.decoder(features, tgt, tgt_mask)
+        R2L_output = self.decoder(features, reversed_tgt, tgt_mask)
+        output = torch.stack(L2R_output, R2L_output)
         return output
 
 

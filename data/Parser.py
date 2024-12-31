@@ -83,6 +83,7 @@ def cache_data(data_dir, save_folder):
 
 
 # Caches images with time / x-directional / y-directional info embedded in RGB channels
+# Some extra abs and min(1, x) are because of two improper InkML cases near counter = 400,000 and 420,000
 def cache_extra(data_dir, save_folder):
     counter = 0
     data_dir = Path(data_dir)
@@ -90,6 +91,11 @@ def cache_extra(data_dir, save_folder):
     data_dir = Path(data_dir)
     
     for file in data_dir.glob("*/*.inkml"):
+        #if counter < 421006: 
+            #print(counter)
+            #counter += 1
+            #continue
+
         strokes, latex, splitTag, x_scale, y_scale = parse_inkml(file)
         if splitTag != 'synthetic':
             img_file = os.path.join('data', save_folder, str(splitTag), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
@@ -116,14 +122,18 @@ def cache_extra(data_dir, save_folder):
                 if dist_x > max_dist_x: max_dist_x = dist_x
                 if dist_y > max_dist_y: max_dist_y = dist_y
 
-                color[idx-1, 0] = t / (stroke[-1][2] - stroke[0][2]) if stroke[-1][2] != stroke[0][2] else min(1, t / 1e-5) # Fixes divide-by-zero
-                color[idx-1, 1] = dist_x / x_scale
-                color[idx-1, 2] = dist_y / y_scale
+                color[idx-1, 0] = min(1, abs(t / (stroke[-1][2] - stroke[0][2]))) if stroke[-1][2] != stroke[0][2] else min(1, abs(t / 1e-5)) # Fixes divide-by-zero
+                color[idx-1, 1] = min(1, dist_x / x_scale)
+                color[idx-1, 2] = min(1, dist_y / y_scale)
 
-            color[:, 1] = color[:, 1] * (x_scale / max_dist_x / 2)
-            color[:, 2] = color[:, 2] * (y_scale / max_dist_y / 2)
+            color[:, 1] = color[:, 1] * (x_scale / max_dist_x / 2) 
+            color[:, 2] = color[:, 2] * (y_scale / max_dist_y / 2) 
             segments = np.concatenate([segments, segment], axis=0)
             colors = np.concatenate([colors, color], axis=0)
+
+        #np.set_printoptions(threshold=1000000, suppress=True)
+        #print(colors)
+        #print(file)
 
         ax.set_axis_off()
         ax.set_aspect("equal")

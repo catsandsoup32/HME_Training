@@ -1,10 +1,10 @@
 import torch
-import torch.nn as nn
-from torch.utils.data import Dataset
-from torchvision.datasets import ImageFolder
+from torch.utils.data import Dataset, DataLoader
 from torch import Tensor
 from PIL import Image
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tokenizer import LaTeXTokenizer
 from pathlib import Path
 
@@ -32,22 +32,16 @@ class MathWritingDataset(Dataset):
             return len(os.listdir(os.path.join(self.data_dir, 'valid')))
         elif self.mode == 'test':
             return len(os.listdir(os.path.join(self.data_dir, 'test')))
-        elif self.mode == 'train+synthetic':
-            return len(os.listdir(os.path.join(self.data_dir, 'train'))) + len(os.listdir(os.path.join(self.data_dir, 'synthetic')))
     
     def __getitem__(self, idx):
         fileID = str( os.listdir(os.path.join(self.data_dir, self.mode))[idx] ).removesuffix('.inkml')[-16:] 
         image = Image.open(os.path.join(self.cache_dir, self.mode, fileID + '.png'))
         
-        sequence = None
-
         latex = open(os.path.join(self.cache_dir, self.mode, fileID + '.txt')).read()
         label = tokenizer.encode(latex)
-        #print(f"Dataset vocab: {tokenizer.vocab}")
-        #print(f"Dataset label: {label}")
+        label = Tensor(label)
+        reversed_label = torch.flip(label, dims=[0])    
+
+        return self.transform(image), label, reversed_label 
     
 
-        #return self.transform(image), sequence, label
-        return self.transform(image), Tensor(label)
-
-# train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train', transform=None)
