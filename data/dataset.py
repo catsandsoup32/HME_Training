@@ -32,17 +32,20 @@ class MathWritingDataset(Dataset):
     def __getitem__(self, idx):
         if self.mode != 'train+synthetic':
             fileID = str(os.listdir(os.path.join(self.data_dir, self.mode))[idx]).removesuffix('.inkml')[-16:] # Last 16 chars is the unique ID
+            cache_folder = self.mode
         else:
+            cache_folder = 'train'
             if idx < self.train_length: 
                 fileID = str(os.listdir(os.path.join(self.data_dir, 'train'))[idx]).removesuffix('.inkml')[-16:]
             else: 
-                fileID = str(os.listdir(os.path.join(self.data_dir, 'synthetic'))[idx-self.train_length]).removesuffix('.inkml')[-16:] # (idx - train_length) to start from 0
+                fileID = str(os.listdir(os.path.join(self.data_dir, 'synthetic'))[idx-self.train_length]).removesuffix('.inkml')[-16:] # idx - train_length to start from 0
+                
 
-        image = Image.open(os.path.join(self.cache_dir, self.mode, fileID + '.png'))
-        latex = open(os.path.join(self.cache_dir, self.mode, fileID + '.txt')).read()
+        image = Image.open(os.path.join(self.cache_dir, cache_folder, fileID + '.png'))
+        latex = open(os.path.join(self.cache_dir, cache_folder, fileID + '.txt')).read()
         label = self.tokenizer.encode(latex)
         label = Tensor(label)
-        reversed_label = torch.flip(label)    
+        reversed_label = torch.flip(label, dims=[0])    
 
         return self.transform(image), label, reversed_label 
     

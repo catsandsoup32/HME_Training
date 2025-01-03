@@ -38,6 +38,37 @@ def parse_inkml(filename: str, ns = {'inkml': 'http://www.w3.org/2003/InkML'}):
     return strokes, latex, splitTag, x_scale, y_scale
 
 
+# Returns segments to build line collection and returns color info for each segment
+def render_from_strokes(strokes, x_scale, y_scale):
+    segments, colors = np.empty((0, 2, 2)), np.zeros((0, 3))
+    for stroke in strokes:
+        segment = np.empty((len(stroke)-1, 2, 2))
+        color = np.zeros((len(stroke)-1, 3))
+
+        max_dist_x, max_dist_y = 1e-5, 1e-5 # Ensures this can't be 0, divide-by-zero bad
+        for idx, itm in enumerate(stroke):
+            if idx == 0: continue
+            x1, y1, t = itm[0], itm[1], (itm[2] - stroke[0][2])
+            x0, y0 = stroke[idx-1][0], stroke[idx-1][1]
+            segment[idx-1, 0, 0], segment[idx-1, 0, 1] = x0, y0
+            segment[idx-1, 1, 0], segment[idx-1, 1, 1] = x1, y1
+
+            # Needed to scale displacements as they were less than 0.004 = 1/255 
+            dist_x, dist_y = abs(x1 - x0), abs(y1 - y0)
+            if dist_x > max_dist_x: max_dist_x = dist_x
+            if dist_y > max_dist_y: max_dist_y = dist_y
+
+            color[idx-1, 0] = min(1, abs(t / (stroke[-1][2] - stroke[0][2]))) if stroke[-1][2] != stroke[0][2] else min(1, abs(t / 1e-5)) # Fixes divide-by-zero
+            color[idx-1, 1] = min(1, dist_x / x_scale)
+            color[idx-1, 2] = min(1, dist_y / y_scale)
+
+        color[:, 1] = color[:, 1] * (x_scale / max_dist_x / 2) 
+        color[:, 2] = color[:, 2] * (y_scale / max_dist_y / 2) 
+        segments = np.concatenate([segments, segment], axis=0)
+        colors = np.concatenate([colors, color], axis=0)
+    return segments, colors
+
+
 # For black-on-white images - note: change this to fit with 2D array
 def cache_data(data_dir, save_folder):
     fig, ax = plt.subplots()
@@ -82,8 +113,8 @@ def cache_data(data_dir, save_folder):
             f.write(latex)
 
 
-# Caches images with time / x-directional / y-directional info embedded in RGB channels
-# Some extra abs and min(1, x) are because of two improper InkML cases near counter = 400,000 and 420,000
+# Caches images with time / x-distance / y-distance info embedded in RGB channels
+# Some extra abs and min(1, x) are because of two improper InkML cases near counter of 400,000 and 420,000
 def cache_extra(data_dir, save_folder):
     counter = 0
     data_dir = Path(data_dir)
@@ -104,33 +135,7 @@ def cache_extra(data_dir, save_folder):
             img_file = os.path.join('data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.png') # Same tag as the inkml
             txt_file = os.path.join('data', save_folder, str('train'), str(file).removesuffix('.inkml')[-16:] + '.txt')
 
-        segments, colors = np.empty((0, 2, 2)), np.zeros((0, 3))
-        for stroke in strokes:
-            segment = np.empty((len(stroke)-1, 2, 2))
-            color = np.zeros((len(stroke)-1, 3))
-
-            max_dist_x, max_dist_y = 1e-5, 1e-5 # Ensures this can't be 0, divide-by-zero bad
-            for idx, itm in enumerate(stroke):
-                if idx == 0: continue
-                x1, y1, t = itm[0], itm[1], (itm[2] - stroke[0][2])
-                x0, y0 = stroke[idx-1][0], stroke[idx-1][1]
-                segment[idx-1, 0, 0], segment[idx-1, 0, 1] = x0, y0
-                segment[idx-1, 1, 0], segment[idx-1, 1, 1] = x1, y1
-
-                # Needed to scale displacements as they were less than 0.004 = 1/255 
-                dist_x, dist_y = abs(x1 - x0), abs(y1 - y0)
-                if dist_x > max_dist_x: max_dist_x = dist_x
-                if dist_y > max_dist_y: max_dist_y = dist_y
-
-                color[idx-1, 0] = min(1, abs(t / (stroke[-1][2] - stroke[0][2]))) if stroke[-1][2] != stroke[0][2] else min(1, abs(t / 1e-5)) # Fixes divide-by-zero
-                color[idx-1, 1] = min(1, dist_x / x_scale)
-                color[idx-1, 2] = min(1, dist_y / y_scale)
-
-            color[:, 1] = color[:, 1] * (x_scale / max_dist_x / 2) 
-            color[:, 2] = color[:, 2] * (y_scale / max_dist_y / 2) 
-            segments = np.concatenate([segments, segment], axis=0)
-            colors = np.concatenate([colors, color], axis=0)
-
+        segments, colors = render_from_strokes(strokes, x_scale, y_scale)
         #np.set_printoptions(threshold=1000000, suppress=True)
         #print(colors)
         #print(file)
@@ -157,5 +162,5 @@ def cache_extra(data_dir, save_folder):
 
 if __name__ == '__main__':        
     #cache_data('data/mathwriting_2024_excerpt', 'excerpt_cache')
-    cache_extra('data/mathwriting_2024', 'full_cache')
+    cache_extra('data/mathwriting_2024', 'excerpt_cache')
     

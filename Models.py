@@ -9,17 +9,17 @@ from util import Permute, PosEncode1D, PosEncode2D
 # Includes bidirectional decoder, pen stroke data in input channels, and full vocabulary
 class Full_Model(nn.Module):
     def __init__(self, vocab_size, d_model, nhead, dim_FF, dropout, num_layers):
-        super(Model_1, self).__init__()
+        super(Full_Model, self).__init__()
         densenet = densenet121(weights=DenseNet121_Weights.DEFAULT) 
         self.encoder = nn.Sequential(
             nn.Sequential(*list(densenet.children())[:-1]), 
             nn.Conv2d(1024, d_model, kernel_size=1), 
             Permute(0, 3, 2, 1), 
-            PosEncode2D(d_model=d_model, dropout_percent=dropout, max_len=150, PE_temp=10000),
+            PosEncode2D(d_model=d_model, dropout_percent=dropout, max_len=400, PE_temp=10000),
             nn.Flatten(1, 2)
         )
         self.tgt_embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=d_model, padding_idx=0)
-        self.word_PE = PosEncode1D(d_model, dropout, max_len=150, PE_temp=10000)
+        self.word_PE = PosEncode1D(d_model, dropout, max_len=400, PE_temp=10000)
         self.transformer_decoder = nn.TransformerDecoder( 
             nn.TransformerDecoderLayer(d_model, nhead, dim_FF, dropout, batch_first=True),
             num_layers,
@@ -39,7 +39,7 @@ class Full_Model(nn.Module):
         features = self.encoder(src)
         L2R_output = self.decoder(features, tgt, tgt_mask)
         R2L_output = self.decoder(features, reversed_tgt, tgt_mask)
-        output = torch.stack(L2R_output, R2L_output)
+        output = torch.stack((L2R_output, R2L_output))
         return output
 
 

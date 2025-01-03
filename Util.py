@@ -20,7 +20,7 @@ class PosEncode1D(nn.Module):
         dim_t = torch.arange(0, d_model, 2) # 2i term in the denominator exponent
         scaling = PE_temp **(dim_t/d_model) # entire denominator 
 
-        pe = torch.zeros(max_len, d_model) # 
+        pe = torch.zeros(max_len, d_model) 
         pe[:, 0::2] = torch.sin(position / scaling) # every second term starting from 0 (even)
         pe[:, 1::2] = torch.cos(position / scaling) # every second term starting from 1 (odd)
 
