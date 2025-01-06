@@ -69,6 +69,26 @@ def render_from_strokes(strokes, x_scale, y_scale):
     return segments, colors
 
 
+# Renders line collection as PIL
+def render_LC(ax, segments, colors):
+    ax.set_axis_off()
+    ax.set_aspect("equal")
+    lc = LineCollection(segments, colors=colors, linewidth=2)
+    ax.add_collection(lc)
+    ax.autoscale()
+    buf = io.BytesIO()
+    plt.savefig(buf, bbox_inches="tight", pad_inches=0)
+    plt.cla()
+    buf.seek(0)
+    img = Image.open(buf)
+    bgW, bgH = 512, 384
+    background = Image.new("RGB", (bgW, bgH), (255, 255, 255))
+    imW, imH = img.size
+    offset = ((bgW - imW) // 2, (bgH - imH) // 2)
+    background.paste(img, offset)
+    return background
+
+
 # For black-on-white images - note: change this to fit with 2D array
 def cache_data(data_dir, save_folder):
     fig, ax = plt.subplots()
@@ -139,22 +159,8 @@ def cache_extra(data_dir, save_folder):
         #np.set_printoptions(threshold=1000000, suppress=True)
         #print(colors)
         #print(file)
-
-        ax.set_axis_off()
-        ax.set_aspect("equal")
-        lc = LineCollection(segments, colors=colors, linewidth=2)
-        ax.add_collection(lc)
-        ax.autoscale()
-        buf = io.BytesIO()
-        plt.savefig(buf, bbox_inches="tight", pad_inches=0)
-        plt.cla()
-        buf.seek(0)
-        img = Image.open(buf)
-        bgW, bgH = 512, 384
-        background = Image.new("RGB", (bgW, bgH), (255, 255, 255))
-        imW, imH = img.size
-        offset = ((bgW - imW) // 2, (bgH - imH) // 2)
-        background.paste(img, offset)
+        
+        background = render_LC(ax, segments, colors)
         background.save(img_file) 
         print(counter)
         counter += 1

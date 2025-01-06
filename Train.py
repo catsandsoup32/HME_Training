@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import StepLR
 from tqdm import tqdm
 from torch.nn.utils.rnn import pad_sequence
 from torchvision.utils import make_grid
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CyclicLR
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -68,7 +68,7 @@ test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode
 
 def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8 , collate_fn=collate_fn) 
-    val_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=4, collate_fn=collate_fn)
+    val_loader = DataLoader(valid_dataset, batch_size=4, shuffle=False, num_workers=8, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=8, shuffle=True, num_workers=8, collate_fn=collate_fn)
 
     accuracy = Accuracy(task='multiclass', num_classes=len(tokenizer.id_to_token))
@@ -78,11 +78,12 @@ def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
 
     optimizer = optim.Adam(model.parameters(), lr=lr, eps=1e-6, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss(ignore_index=0)  # Assuming 0 is the padding index
-    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=3)
+    scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.1, patience=2)
+    #scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=1e-3)
 
     train_accs, train_losses, val_accs, val_losses = [], [], [], []
 
-    #model.load_state_dict(torch.load("runs/Exp8E15End_Acc=0.6744208335876465.pt", map_location=device, weights_only=True))
+    #model.load_state_dict(torch.load("runs/Exp10E2.pt", map_location=device, weights_only=True))
     # change to range(x, num_epochs) if loading from saved
     for epoch in range(1, num_epochs+1):
         model.train()
@@ -109,12 +110,13 @@ def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
 
             loss_L = criterion(outputs_reshaped_L, tgt_out.reshape(-1))
             loss_R = criterion(outputs_reshaped_R, reversed_tgt_out.reshape(-1))
-            loss = 0.5*loss_L + 0.5*loss_R
+            loss = loss_L + loss_R
             running_loss += loss.item() * images.size(0)
             running_acc += (0.5 * accuracy(outputs[0].permute(0, 2, 1), tgt_out) + 0.5 * accuracy(outputs[1].permute(0, 2, 1), reversed_tgt_out))
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+            #scheduler.step() 
 
         # This gives more unique data to train on
         if use_test_in_train:
@@ -130,12 +132,13 @@ def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
                 outputs_reshaped_L, outputs_reshaped_R = outputs[0].view(-1, outputs[0].size(-1)), outputs[1].view(-1, outputs[1].size(-1)) # [B * seq_len, vocab_size]
                 loss_L = criterion(outputs_reshaped_L, tgt_out.reshape(-1))
                 loss_R = criterion(outputs_reshaped_R, reversed_tgt_out.reshape(-1))
-                loss = 0.5*loss_L + 0.5*loss_R
+                loss = loss_L + loss_R
                 running_loss += loss.item() * images.size(0)
                 running_acc += (0.5 * accuracy(outputs[0].permute(0, 2, 1), tgt_out) + 0.5 * accuracy(outputs[1].permute(0, 2, 1), reversed_tgt_out))
                 loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
+                #scheduler.step()
         
         train_acc = running_acc / counter * 100
         train_accs.append(train_acc)
@@ -159,7 +162,7 @@ def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
                 tgt_out, reversed_tgt_out = tgt[:, 1:], reversed_tgt[:, 1:]
                 outputs = model(images, tgt_in, reversed_tgt_in, tgt_mask[:-1, :-1]) # forward, outputs of (batch_size, seq_len, vocab_size)
                 outputs_reshaped_L, outputs_reshaped_R = outputs[0].view(-1, outputs[0].size(-1)), outputs[1].view(-1, outputs[1].size(-1))
-                loss = 0.5 * criterion(outputs_reshaped_L, tgt_out.reshape(-1)) + criterion(outputs_reshaped_R, reversed_tgt_out.reshape(-1))
+                loss = criterion(outputs_reshaped_L, tgt_out.reshape(-1)) + criterion(outputs_reshaped_R, reversed_tgt_out.reshape(-1))
                 running_loss += loss.item() * images.size(0)
                 running_acc += 0.5 * accuracy(outputs[0].permute(0, 2, 1), tgt_out) + 0.5 * accuracy(outputs[1].permute(0, 2, 1), reversed_tgt_out)
 
@@ -168,31 +171,17 @@ def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
         val_acc = running_acc / counter * 100
         val_accs.append(val_acc)
         print(f"Validation: loss = {val_loss}, acc = {val_acc}")
-        scheduler.step(val_loss)
+        #scheduler.step(val_loss)
 
         torch.save(model.state_dict(), f"runs/Exp{experiment_num}E{epoch}.pt")
     
-    # Generate graphs
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(1, num_epochs+1), train_losses, label='Train Losses', marker='o')  
-    plt.plot(range(1, num_epochs+1), val_losses, label='Val Losses', marker='s')  
-    plt.legend()
-    plt.savefig(f"runs/Exp{experiment_num}Losses")
-    plt.close()
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(1, num_epochs+1), train_accs, label='Train Accs', marker='o')  
-    plt.plot(range(1, num_epochs+1), val_accs, label='Val Accs', marker='s')  
-    plt.legend()
-    plt.savefig(f"runs/Exp{experiment_num}Accs")
-    plt.close()
-
 
 if __name__ == '__main__': 
     main(
         num_epochs = 20,
         model_in = Full_Model(vocab_size=len(tokenizer.id_to_token), d_model=256, nhead=8, dim_FF=1024, dropout=0.3, num_layers=3),
-        lr = 1e-4,
-        experiment_num = 9,
+        lr = 1e-5,
+        experiment_num = 12,
         use_test_in_train = True
     )
     
@@ -207,8 +196,21 @@ if __name__ == '__main__':
 # Experiment 8 uses pretrained and Adam, also implemented thickness transform and plan to train on more epochs
 # optimizer = optim.Adam(model.parameters(), lr=1e-4, eps=1e-6, weight_decay=1e-4)
 
-# Experiment 9 adds color channel embedding and bidirectionality, seems to overfit with val loss jumping from 2 to 66 on epoch 4
+# Experiment 9 adds color channel embedding and bidirectionality, seems to overfit with val loss jumping from 2 to 66 on epoch 3/4
 # Synthetic data (entire dataset) was used, val calculation was off in that tgt was used as parameter for reversed_tgt
-# So epoch 3 should be trained pretty well
+# So epoch 2-3 should be trained pretty well
 
 # Experiment 10 does not train on synthetic images but does use test samples
+# Found out that it was likely lr scheduler with patience=3, factor=0.1 that was nuking the performance
+
+# Experiment 11 assumes model was simply overfitting because it got stuck in early local minima
+# Will try cyclic learning rate: scheduler = CyclicLR(optimizer, base_lr=3e-4, max_lr=1e-3)
+# Exp 11 had Exp10E2 loaded in and showed improvement with cyclicLR but then dropped next epoch
+
+# Exp 12 with LR = 1e-5 and no scheduler
+# LR still seems too high (quick drop and then flat)
+
+# Exp 13 starts from Exp12E5 with 1e-6 
+
+
+
