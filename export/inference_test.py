@@ -70,17 +70,3 @@ def greedy():
     print(latex_out)
 
 
-def beam_search(width, alpha):
-    tgt_in = torch.ones([1, 1], dtype=torch.long).to(device)
-    tgt_mask = torch.triu(torch.ones(200, 200) * float("-inf"), diagonal=1).to(device)
-    
-    output = model(features, tgt_in, tgt_mask[:1, :1])
-    output_sm = log_softmax(output, dim=-1) # Size (1, 1, 217)
-    top_probs, indices = output_sm.topk(width, dim=-1)
-    top_probs, indices = top_probs.tolist(), indices.tolist()
-
-    for i in range(width):
-        pass
-#beam_search(2, None)
-
-greedy()

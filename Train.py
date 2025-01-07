@@ -61,7 +61,7 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train', transform=transform, tokenizer=tokenizer)
+train_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='train+synthetic', transform=transform, tokenizer=tokenizer)
 valid_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='valid', transform=transform, tokenizer=tokenizer)
 test_dataset = MathWritingDataset(data_dir=data_path, cache_dir=cache_path, mode='test', transform=transform, tokenizer=tokenizer)
 
@@ -83,9 +83,9 @@ def main(num_epochs, model_in, lr, experiment_num, use_test_in_train):
 
     train_accs, train_losses, val_accs, val_losses = [], [], [], []
 
-    #model.load_state_dict(torch.load("runs/Exp10E2.pt", map_location=device, weights_only=True))
+    model.load_state_dict(torch.load("runs/Exp12E7.pt", map_location=device, weights_only=True))
     # change to range(x, num_epochs) if loading from saved
-    for epoch in range(1, num_epochs+1):
+    for epoch in range(6, num_epochs+1):
         model.train()
         running_loss, running_acc = 0.0, 0.0
         accuracy.reset()
@@ -180,8 +180,8 @@ if __name__ == '__main__':
     main(
         num_epochs = 20,
         model_in = Full_Model(vocab_size=len(tokenizer.id_to_token), d_model=256, nhead=8, dim_FF=1024, dropout=0.3, num_layers=3),
-        lr = 1e-5,
-        experiment_num = 12,
+        lr = 1e-6,
+        experiment_num = 13,
         use_test_in_train = True
     )
     
@@ -203,14 +203,14 @@ if __name__ == '__main__':
 # Experiment 10 does not train on synthetic images but does use test samples
 # Found out that it was likely lr scheduler with patience=3, factor=0.1 that was nuking the performance
 
-# Experiment 11 assumes model was simply overfitting because it got stuck in early local minima
+# Experiment 11 assumes model was bad simply because it got stuck in early local minima
 # Will try cyclic learning rate: scheduler = CyclicLR(optimizer, base_lr=3e-4, max_lr=1e-3)
 # Exp 11 had Exp10E2 loaded in and showed improvement with cyclicLR but then dropped next epoch
 
 # Exp 12 with LR = 1e-5 and no scheduler
 # LR still seems too high (quick drop and then flat)
 
-# Exp 13 starts from Exp12E5 with 1e-6 
+# Exp 13 starts from Exp12E7 with 1e-6 and synthetic set
 
 
 
