@@ -5,6 +5,8 @@ from tokenizer import LaTeXTokenizer
 import torchvision.transforms as transforms
 from PIL import Image
 from torch.nn import LogSoftmax
+from torch.nn.utils.rnn import pad_sequence
+
 
 device = 'cuda'
 tokenizer = LaTeXTokenizer()
@@ -14,60 +16,80 @@ model.load_state_dict(torch.load(r'runs\Exp9E2.pt', map_location=device, weights
 transform = transforms.Compose([transforms.Resize((512, 384)),transforms.ToTensor()])
 
 
-def compare_beam_pairs():
-    pass
-
 # input is a PIL image, returns beam_width amount of both L2R and R2L sequences
-def BD_beam_search(input, model, tokenizer, transform, device, beam_width, alpha):
+def beam_search(input, model, vocab_size, transform, device, beam_width, alpha, end_token):
     with torch.no_grad():
-        vocab_size = 231 # len(tokenizer.vocab)
+        vocab_size = vocab_size
         logSM = LogSoftmax(dim=-1)
         features = model.encoder(transform(input).unsqueeze(0).to(device)).detach()
         features_batch = features.repeat_interleave(beam_width, dim=0) # From size [1, 192, 256] to [beam_width, 192, 256]
         tgt_mask = torch.triu(torch.ones(200, 200) * float("-inf"), diagonal=1).to(device)
 
-        beams_L = torch.ones([1, 1], dtype=torch.long).to(device) 
-        beams_R = beams_L * 2 # R2L sequence starts with <EOS> token
-
+        start_token = 1 if end_token == 2 else 2
+        beams = torch.ones([1, 1], dtype=torch.long).to(device) * start_token
+    
         # Root expansion step
-        output_L, output_R = model.decoder(features, beams_L, tgt_mask[:1, :1]), model.decoder(features, beams_R, tgt_mask[:1, :1])
-        beam_scores_L, indices_L = torch.topk(logSM(output_L), beam_width, dim=-1) # Size [1, 1, beam_width]
-        beam_scores_R, indices_R = torch.topk(logSM(output_R), beam_width, dim=-1)
-        beams_L = torch.cat([beams_L.repeat_interleave(beam_width, dim=1).unsqueeze(2), indices_L.permute(0, 2, 1)], dim=-1) # [1, beam_width, 2]
-        beams_R = torch.cat([beams_R.repeat_interleave(beam_width, dim=1).unsqueeze(2), indices_R.permute(0, 2, 1)], dim=-1)
-        beam_scores_L, beam_scores_R = beam_scores_L.view(beam_width, 1), beam_scores_R.view(beam_width, 1) # Fits [beam_width, vocab] shape in for loop
+        output = model.decoder(features, beams, tgt_mask[:1, :1])
+        beam_scores, indices = torch.topk(logSM(output), beam_width, dim=-1) # Size [1, 1, beam_width]
+        beams = torch.cat([beams.repeat_interleave(beam_width, dim=1).unsqueeze(2), indices.permute(0, 2, 1)], dim=-1) # [1, beam_width, 2]
+        beam_scores = beam_scores.view(beam_width, 1) # Fits [beam_width, vocab] shape in for loop
 
+        completed_beams = torch.zeros((beam_width, 200), dtype=torch.long).to(device)
+        completed_probs = torch.zeros((beam_width), dtype=torch.float32).to(device)
+        start_slice = 0 # For completed beams
         for i in range(2, 200):
-            tgt_L, tgt_R = beams_L.squeeze(), beams_R.squeeze()
-            output_L, output_R = model.decoder(features_batch, tgt_L, tgt_mask[:i, :i]), model.decoder(features_batch, tgt_R, tgt_mask[:i, :i])
+            tgt = beams.squeeze()
+            output = model.decoder(features_batch, tgt, tgt_mask[:i, :i])
 
             # Get updated probabilities and store as beam_width amount of beam scores
-            probs_L, probs_R = logSM(output_L[:, -1, :]), logSM(output_R[:, -1, :]) # [beam_width, vocab]
-            probs_L += beam_scores_L # [beam_width, vocab] + [beam_width, 1] 
-            probs_R +=  beam_scores_R
+            probs = logSM(output[:, -1, :]) # [beam_width, vocab]
+            probs += beam_scores # [beam_width, vocab] + [beam_width, 1] 
 
-            # Make sure completed beams do not expand
-            if i > 2:
-                probs_L[~active_mask_L, :] = float("-inf")
-                probs_R[~active_mask_R, :] = float("-inf")
+            # Freeze beams and store final values
+            if i > 2 and (end_indices.dim() == 0 or (end_indices.dim() == 1 and end_indices.shape[0] > 1)): # Accounts for single scalar index and range of indices (none true means empty tensor with dim=1)
+                size = int(end_indices) if end_indices.dim() == 0 else end_indices.shape[0]
+                end_slice = start_slice+size  
+                end_beams = torch.index_select(beams, dim=1, index=end_indices).squeeze() # [beam_width, current_length]
+                end_probs = beam_scores.squeeze()[end_indices] 
+                if end_slice >= beam_width: 
+                    end_slice = beam_width
+                    end_beams = end_beams[0:(beam_width-(start_slice)), :]
+                    end_probs = end_probs[0:(beam_width-(start_slice))] 
+
+                completed_beams[start_slice:end_slice, :i] = end_beams
+                completed_probs[start_slice:end_slice] = end_probs * (1 / (i**alpha))
+                probs[end_mask, :] = -torch.inf 
+                if end_slice >= beam_width:
+                    break
+                else:
+                    start_slice += size
 
             # Update beams with next token - since probabilities are flattened, need to find corresponding beam and its next index w.r.t original vocab
-            beam_scores_L, indices_L = torch.topk(probs_L.view(beam_width*vocab_size, 1), beam_width, dim=0) # Flattened
-            beam_scores_R, indices_R = torch.topk(probs_R.view(beam_width*vocab_size, 1), beam_width, dim=0)
-            beams_L = torch.cat([beams_L[torch.arange(1).unsqueeze(-1), indices_L//vocab_size], (indices_L%vocab_size).unsqueeze(2)], dim=-1) 
-            beams_R = torch.cat([beams_R[torch.arange(1).unsqueeze(-1), indices_R//vocab_size], (indices_R%vocab_size).unsqueeze(2)], dim=-1) 
+            beam_scores, indices = torch.topk(probs.view(beam_width*vocab_size, 1), beam_width, dim=0) # Flattened
+            # Need permute to change from [beam_width, 1, len] to [1, beam_width, len]
+            beams = torch.cat([beams[torch.arange(1).unsqueeze(-1), indices//vocab_size], (indices%vocab_size).unsqueeze(2)], dim=-1).permute(1, 0, 2) 
 
             # Check if there was <EOS> or <BOS> generated
-            active_mask_L = (beams_L[:, :, -1] != 2).squeeze()
-            active_mask_R = (beams_R[:, :, -1] != 1).squeeze()
-        
+            end_mask = (beams[0, :, -1] == end_token).squeeze()
+            end_indices = torch.nonzero(end_mask).squeeze()             
 
-            if i > 5:
-                break
+        print(completed_beams)
+        print(completed_probs)
+        latex_left = tokenizer.decode(t for t in beams[0, 0, :].tolist())
+
+        return completed_probs, completed_probs 
+
+def bidirectional_search(input, model, vocab_size, transform, device, beam_width, alpha):
 
 
-        return 
+    L2R_beams, L2R_probs = beam_search(input, model, vocab_size, transform, device, beam_width, alpha, 2)
+    R2L_beams, R2L_probs = beam_search(input, model, vocab_size, transform, device, beam_width, alpha, 1)
+
+    
 
 
-input = Image.open(r'C:\Users\edmun\Desktop\VSCode Projects\HME_Training\data\excerpt_cache\test\000a4e8ca49c5a1c.png') 
-BD_beam_search(input, model, tokenizer, transform, device, 5, 1)
+
+
+
+input = Image.open(r'C:\Users\edmun\Desktop\VSCode Projects\HME_Training\data\excerpt_cache\valid\00184588166a4dac.png') 
+beam_search(input, model, 231, transform, device, 5, 1, 2)
