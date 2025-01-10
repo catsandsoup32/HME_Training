@@ -17,9 +17,9 @@ transform = transforms.Compose([transforms.Resize((512, 384)),transforms.ToTenso
 
 
 # input is a PIL image, returns beam_width amount of both L2R and R2L sequences
-def beam_search(input, model, vocab_size, transform, device, beam_width, alpha, end_token):
+def beam_search(input, model, tokenizer, transform, device, beam_width, alpha, end_token):
     with torch.no_grad():
-        vocab_size = vocab_size
+        vocab_size = len(tokenizer.id_to_token)
         logSM = LogSoftmax(dim=-1)
         features = model.encoder(transform(input).unsqueeze(0).to(device)).detach()
         features_batch = features.repeat_interleave(beam_width, dim=0) # From size [1, 192, 256] to [beam_width, 192, 256]
@@ -45,7 +45,8 @@ def beam_search(input, model, vocab_size, transform, device, beam_width, alpha, 
             probs = logSM(output[:, -1, :]) # [beam_width, vocab]
             probs += beam_scores # [beam_width, vocab] + [beam_width, 1] 
 
-            # Freeze beams and store final values
+            # Freeze beams and store final values if needed
+            # COULD DO: .nonzero(asTuple=True) below to clean up conditionals here
             if i > 2 and (end_indices.dim() == 0 or (end_indices.dim() == 1 and end_indices.shape[0] > 1)): # Accounts for single scalar index and range of indices (none true means empty tensor with dim=1)
                 size = int(end_indices) if end_indices.dim() == 0 else end_indices.shape[0]
                 end_slice = start_slice+size  
@@ -73,23 +74,47 @@ def beam_search(input, model, vocab_size, transform, device, beam_width, alpha, 
             end_mask = (beams[0, :, -1] == end_token).squeeze()
             end_indices = torch.nonzero(end_mask).squeeze()             
 
-        print(completed_beams)
-        print(completed_probs)
-        latex_left = tokenizer.decode(t for t in beams[0, 0, :].tolist())
-
-        return completed_probs, completed_probs 
-
-def bidirectional_search(input, model, vocab_size, transform, device, beam_width, alpha):
+        return completed_beams, completed_probs 
 
 
-    L2R_beams, L2R_probs = beam_search(input, model, vocab_size, transform, device, beam_width, alpha, 2)
-    R2L_beams, R2L_probs = beam_search(input, model, vocab_size, transform, device, beam_width, alpha, 1)
+def reverse_beams(tensor):
+    result = tensor.clone()  # Clone the tensor to avoid modifying the original
+    for i in range(tensor.size(0)):  # Iterate over each row
+        non_zero_indices = tensor[i].nonzero(as_tuple=True)[0]  # Get non-zero indices
+        non_zero_values = tensor[i][non_zero_indices]  # Extract non-zero values
+        reversed_values = non_zero_values.flip(0)  # Reverse the non-zero values
+        result[i][non_zero_indices] = reversed_values  # Place them back
+    return result
 
-    
 
+# TO DO: maintain probabilities for each token (rather than sum at each step)
+# This will allow use of CE loss here instead of nested python loop
+# Also will get rid of parameterized b factor
+def bidirectional_search(input, model, tokenizer, transform, device, beam_width, alpha, b):
+    L2R_beams, L2R_probs = beam_search(input, model, tokenizer, transform, device, beam_width, alpha, 2) 
+    R2L_beams, R2L_probs = beam_search(input, model, tokenizer, transform, device, beam_width, alpha, 1)
+    reversed_L2R, reversed_R2L = reverse_beams(L2R_beams), reverse_beams(R2L_beams)
 
+    # Compare L2R with reversed R2L, and R2L with reversed L2R
+    for i in range(beam_width):
+        difference_L, difference_R = 0, 0
+        for j in range(beam_width):   
+            difference_L += (L2R_beams[i]!=reversed_R2L[j]).int().sum().item()
+            difference_R += (R2L_beams[i]!=reversed_L2R[j]).int().sum().item()
+        L2R_probs[i] -= torch.tensor(difference_L * b)
+        R2L_probs[i] -= torch.tensor(difference_R * b)
 
-
+    probs_L, indices_L = torch.topk(L2R_probs, 1)
+    probs_R, indices_R = torch.topk(R2L_probs, 1)
+    best = 1 if probs_L > probs_R else 0
+    if best:
+        res = L2R_beams[indices_L]
+    else:
+        res = reverse_beams(R2L_beams[indices_R])
+    res = res[res!=0]
+    latex_out = tokenizer.decode(t for t in res.tolist())
+    return latex_out
 
 input = Image.open(r'C:\Users\edmun\Desktop\VSCode Projects\HME_Training\data\excerpt_cache\valid\00184588166a4dac.png') 
-beam_search(input, model, 231, transform, device, 5, 1, 2)
+result = bidirectional_search(input, model, tokenizer, transform, device, 5, 1, 0.1)
+print(result)

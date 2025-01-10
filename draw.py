@@ -11,7 +11,7 @@ import torchvision.transforms as transforms
 from models import Model_1, Full_Model
 from tokenizer import LaTeXTokenizer
 from data.parser import render_from_strokes, render_LC
-from search import beam_search
+from search import beam_search, bidirectional_search
 
 
 USE_SIMPLE = True 
@@ -148,6 +148,7 @@ class Paint(object):
 
     def render_latex(self, tex_string):
         tex_string = "$" + str(tex_string) + "$"
+        plt.rcParams['text.latex.preamble'] = r'\usepackage{amsmath}'
         print(f"latex string: {tex_string}")
         plt.rc('text', usetex=True)
         fig = Figure(figsize=(5, 5))
@@ -159,7 +160,10 @@ class Paint(object):
         buf.seek(0)
         image = Image.open(buf)
         self.tk_image = ImageTk.PhotoImage(image)
-        self.c.create_image(300, 150, image=self.tk_image)
+        self.image_id = self.c.create_image(600, 150, image=self.tk_image)
+
+    def show_rendered_latex(self):
+        pass
 
     def color_processing(self, strokes):
         segments, colors = render_from_strokes(strokes, self.width, self.height)
