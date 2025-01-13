@@ -1,11 +1,11 @@
 # HME_Training
 
-Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. See the model in action being used to write out the softmax derivative: TBD.
+Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. See a quick demo here: https://youtu.be/TkWYrTANouE?feature=shared.
 
 
-# Setup
+# Background
 
-Run locally in `draw.py` file after `pip install -r requirements.txt` and ensuring LaTeX is installed. To train the model, check out the MathWriting link below to download the data, then run `parser.py` after setting up destination folders. There is also an ongoing attempt to deploy the model online: https://github.com/catsandsoup32/TeXan.
+This project evolved from my [SPIS](https://spis.ucsd.edu/) final [project](https://github.com/catsandsoup32/Dynamic-Digit-Recognition), which was my first real coding experience apart from AP CSP. An ongoing attempt to deploy as a web app can be found [here](https://github.com/catsandsoup32/TeXan).
 
 
 # Color Channel Embedding
@@ -19,12 +19,9 @@ Just as in text-to-text translation or image-captioning tasks, an encoder-decode
 
 # Bidirectionality
 
-LaTeX and math itself are inherently somewhat palindromic (`\begin{matrix}` is always followed by `\end{matrix}`, every opening bracket or parenthesis is always followed by a closing bracket or parenthesis, operands are always sandwiched between expressions, etc.), much more so than the English language, which is perhaps why a simpler approach works here compared to the more complex and deeper bidirectionality in some language models such as BERT (and a much smaller vocabulary certainly also helps). 
+A single decoder is trained on both left-to-right and right-to-left sequences, and during inference after beam search in each direction, each beam is compared to every beam in the reverse direction and its probability is adjusted accordingly.
 
-
-
-
-
+LaTeX and math itself are inherently somewhat palindromic (`\begin{matrix}` is always followed by `\end{matrix}`, every opening bracket or parenthesis is always followed by a closing bracket or parenthesis, operands are always sandwiched between expressions, etc.), much more so than the English language, which is reflects in this simpler approach compared to the more complex and deeper bidirectionality within some language models such as BERT.
 
 
 # References

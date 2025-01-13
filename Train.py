@@ -222,3 +222,6 @@ if __name__ == '__main__':
 
 # Exp 17 starts with Exp16E20 pretrained and synthetic set
 
+# TO DO: ablation on color, thickness, bidirectionality, and probably just use a fully online model 
+# Cross-attention with two modalities also seems fun to work on
+
