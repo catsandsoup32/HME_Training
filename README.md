@@ -21,7 +21,7 @@ Just as in text-to-text translation or image-captioning tasks, an encoder-decode
 
 A single decoder is trained on both left-to-right and right-to-left sequences, and during inference, after beam search in each direction, each beam is compared to every beam in the reverse direction and its probability is adjusted accordingly.
 
-LaTeX and math itself are inherently somewhat palindromic (`\begin{matrix}` is always followed by `\end{matrix}`, every opening bracket or parenthesis is always followed by a closing bracket or parenthesis, operands are always sandwiched between expressions, etc.), much more so than the English language, which is reflects in this simpler approach compared to the more complex and deeper bidirectionality within some language models such as BERT.
+LaTeX and math itself are inherently somewhat palindromic (`\begin{matrix}` is always followed by `\end{matrix}`, every opening bracket or parenthesis is always followed by a closing bracket or parenthesis, operands are always sandwiched between expressions, etc.), much more so than the English language, which reflects in this simpler approach compared to the more complex and deeper bidirectionality within some language models such as BERT.
 
 
 # References
