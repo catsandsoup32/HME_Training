@@ -1,6 +1,6 @@
 # HME_Training
 
-Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. See a quick demo here: https://youtu.be/TkWYrTANouE?feature=shared.
+Training code for handwritten mathematical expression recognition using a bidirectionally-trained transformer, and a canvas GUI to write math, perform inference, and copy resulting LaTeX to clipboard. See a quick demo here: <a href="https://youtu.be/TkWYrTANouE?feature=shared" target="_blank">Link Text</a>.
 
 
 # Background
