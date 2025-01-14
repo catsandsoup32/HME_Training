@@ -5,7 +5,7 @@ Training code for handwritten mathematical expression recognition using a bidire
 
 # Background
 
-This project evolved from my [SPIS](https://spis.ucsd.edu/) final [project](https://github.com/catsandsoup32/Dynamic-Digit-Recognition), which was my first real coding experience apart from AP CSP. An ongoing attempt to deploy as a web app can be found [here](https://github.com/catsandsoup32/TeXan).
+This project evolved from my [SPIS](https://spis.ucsd.edu/) final [project](https://github.com/catsandsoup32/Dynamic-Digit-Recognition) a few months prior, which was my first real coding experience apart from AP CSP. An ongoing attempt to deploy as a web app can be found [here](https://github.com/catsandsoup32/TeXan).
 
 
 # Color Channel Embedding
